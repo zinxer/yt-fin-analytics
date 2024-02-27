@@ -1,0 +1,125 @@
+{
+    "title": {
+        "text": "<analysed_video_title>",
+        "title_sentiment": "<title_sentiment>"
+    },
+    "participants": [
+        "<participant1>",
+        "<participant2>",
+        "<participant3>",
+        "<participant4>"
+    ],
+    "asset_discussed": {
+        "asset1": {
+            "market_type": "<market1_type>",
+            "related_country": [
+                "<country1>",
+                "<country2>"
+            ],
+            "sentiment": {
+                "<participant1>": "<asset1_participant1_sentiment>",
+                "<participant2>": "<asset1_participant2_sentiment>",
+                "<participant3>": "<asset1_participant3_sentiment>",
+                "<participant4>": "<asset1_participant4_sentiment>"
+            },
+            "overall_sentiment": "<asset1_overall_sentiment>",
+            "weight": "<asset1_weight_outof100>",
+            "prediction": {
+                "short_term": "<asset1_short_term_sentiment>",
+                "long_term": "<asset1_long_term_sentiment>"
+            },
+            "strength": "<asset1_strength>",
+            "weakness": "<asset1_weakness>"
+        },
+        "asset2": {
+            "market_type": "<market2_type>",
+            "related_country": [
+                "<country1>",
+                "<country2>"
+            ],
+            "sentiment": {
+                "<participant1>": "<asset2_participant1_sentiment>",
+                "<participant2>": "<asset2_participant2_sentiment>",
+                "<participant3>": "<asset2_participant3_sentiment>",
+                "<participant4>": "<asset2_participant4_sentiment>"
+            },
+            "overall_sentiment": "<asset2_overall_sentiment>",
+            "weight": "<asset2_weight_outof100>",
+            "prediction": {
+                "short_term": "<asset2_short_term_sentiment>",
+                "long_term": "<asset2_long_term_sentiment>"
+            },
+            "strength": "<asset2_strength>",
+            "weakness": "<asset2_weakness>"
+        },
+        "asset3": {
+            "market_type": "<market3_type>",
+            "related_country": [
+                "<country1>",
+                "<country2>"
+            ],
+            "sentiment": {
+                "<participant1>": "<asset3_participant1_sentiment>",
+                "<participant2>": "<asset3_participant2_sentiment>",
+                "<participant3>": "<asset3_participant3_sentiment>",
+                "<participant4>": "<asset3_participant4_sentiment>"
+            },
+            "overall_sentiment": "<asset3_overall_sentiment>",
+            "weight": "<asset3_weight_outof100>",
+            "prediction": {
+                "short_term": "<asset3_short_term_sentiment>",
+                "long_term": "<asset3_long_term_sentiment>"
+            },
+            "strength": "<asset3_strength>",
+            "weakness": "<asset3_weakness>"
+        }
+    },
+    "topic_discussed": [
+        {
+            "topic": "<topic1>",
+            "market_type": [
+                "<market1>",
+                "<market2>"
+            ],
+            "related_country": [
+                "<country1>",
+                "<country2>"
+            ],
+            "asset_discussed": [
+                "<asset1>",
+                "<asset2>"
+            ],
+            "keywords": [
+                "<keyword1>",
+                "<keyword2>"
+            ],
+            "sentiment": "<topic1_sentiment>",
+            "summary": "<topic1_summary>"
+        },
+        {
+            "topic": "<topic2>",
+            "market_type": [
+                "<market1>",
+                "<market2>"
+            ],
+            "related_country": [
+                "<country1>",
+                "<country2>"
+            ],
+            "asset_discussed": [
+                "<asset1>",
+                "<asset2>"
+            ],
+            "keywords": [
+                "<keyword1>"
+            ],
+            "sentiment": "<topic2_sentiment>",
+            "summary": "<topic2_summary>"
+        }
+    ],
+    "conclusion": {
+        "recommendation": "<conclusion_recommendation>",
+        "rationale": "<conclusion_rationale>",
+        "is_finance_related": "<conclusion_is_finance_related_boolean>"
+    }
+}
