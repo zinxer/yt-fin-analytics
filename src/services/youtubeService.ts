@@ -5,6 +5,7 @@ import { YoutubeTranscript } from 'youtube-transcript';
 import fs from 'fs';
 import youtube_channels from '../models/youtube_channels';
 import youtube_videos from '../models/youtube_videos';
+import { Op } from 'sequelize';
 
 const API_KEY = process.env.YOUTUBE_DATA_API_KEY;
 
@@ -30,7 +31,7 @@ interface VideoListOptions {
 }
 
 async function searchChannels(searchQuery: string) {
-    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(searchQuery)}&key=${API_KEY}`;
+    const searchUrl = `${process.env.YOUTUBE_API_BASE_URL}/search?part=snippet&type=channel&q=${encodeURIComponent(searchQuery)}&key=${API_KEY}`;
 
     try {
         const response = await axios.get(searchUrl);
@@ -78,7 +79,6 @@ async function getChannelDataById(channelId: string): Promise<ChannelData | null
 
 async function getChannelVideos(channelId: string, fromTime: number = 0, limit: number = 50): Promise<string[]> {
     const url = `${process.env.YOUTUBE_API_BASE_URL}/search?key=${API_KEY}&channelId=${channelId}&part=snippet,id&order=date&type=video&maxResults=${limit}`;
-
     try {
         const response = await axios.get(url);
         let videos = response.data.items.filter((item: any) => new Date(item.snippet.publishedAt).getTime() >= fromTime);
@@ -129,12 +129,10 @@ async function listChannelVideosDetailed(channelId: string, fromTime: number, li
 async function getYoutubeTranscriptFromVideoId(videoId: string) {
     try {
         const response = await YoutubeTranscript.fetchTranscript(videoId, { lang: 'en' });
-        // i want to join the transcript from the response array of objects with property text
-        // into a single string
         const transcript = response.map((item: any) => item.text).join(' ');
         return transcript;
     } catch (error) {
-        console.error('-E-Error fetching YouTube transcript:', error);
+        console.log('-E- Error/no YouTube transcript for video', videoId);
         return '';
     }
 }
@@ -175,6 +173,58 @@ export async function saveChannelVideos(channelId: string, limit: number = 50) {
     return null;
 }
 
+export async function retrieveAndSaveYoutubeVideoTranscript(videoId?: string, optimise?: boolean) {
+    if (videoId) {
+        const video = await youtube_videos.findOne({ where: { id: videoId } });
+        if (video) {
+            const transcript = await getYoutubeTranscriptFromVideoId(videoId);
+            if (transcript) {
+                await video.update({ transcript });
+                return transcript;
+            }
+        }
+    } else {
+        // if optimise is true, only retrieve transcripts for videos where titleInvestmentScore is medium or high (case insensitive) else retrieve transcripts for all videos
+        if (optimise) {
+            const videos = await youtube_videos.findAll({
+                where: {
+                    titleInvestmentScore: {
+                        [Op.or]: [
+                            { [Op.iLike]: 'medium' },
+                            { [Op.iLike]: 'high' }
+                        ]
+                    },
+                    transcript: null
+                }
+            });
+            for (const video of videos) {
+                const transcript = await getYoutubeTranscriptFromVideoId(video.id);
+                if (transcript) {
+                    await video.update({ transcript });
+                } else {
+                    // delete video from database if transcript is not available
+                    await video.destroy();
+                    console.log(`-I- Video ${video.id} deleted from database because transcript is not available`);
+                }
+            }
+            return videos;
+        } else {
+            const videos = await youtube_videos.findAll({where: {transcript: null}});
+            for (const video of videos) {
+                const transcript = await getYoutubeTranscriptFromVideoId(video.id);
+                if (transcript) {
+                    await video.update({ transcript });
+                } else {
+                    // delete video from database if transcript is not available
+                    await video.destroy();
+                    console.log(`-I- Video ${video.id} deleted from database because transcript is not available`);
+                }
+            }
+            return videos;
+        }
+    }
+    return null;
+}
 /*
 //listChannelVideosDetailed('UCxxxxxxxxxxxxxxxxxxxxxx', 10).then(console.log).catch(console.error);
 const videoId = 'rKD3s7Y3mxA';

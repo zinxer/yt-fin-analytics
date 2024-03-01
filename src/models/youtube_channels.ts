@@ -1,4 +1,4 @@
-// YoutubeChannels.ts
+// youtube_channels.ts
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../../config/database'; // Adjust this import based on your actual Sequelize connection setup
 

@@ -11,12 +11,9 @@
     ],
     "asset_discussed": [
         {
-            "asset_name": "<asset1>",
-            "market_type": "<market1_type>",
-            "related_country": [
-                "<country1>",
-                "<country2>"
-            ],
+            "asset_name": "<asset>",
+            "market_type": "<market_type>",
+            "related_country": "country",
             "participant": [
                 {
                     "name": "<participant1>",
@@ -51,10 +48,7 @@
         {
             "asset_name": "<asset2>",
             "market_type": "<market2_type>",
-            "related_country": [
-                "<country1>",
-                "<country2>"
-            ],
+            "related_country": "country",
             "participant": [
                 {
                     "name": "<participant1>",
@@ -172,7 +166,7 @@
     ],
     "conclusion": {
         "transcript_quality_score": "<transcript_quality_score>",
-        "sumamry": "<conclusion_summary>",
+        "summary": "<conclusion_summary>",
         "transcript_lang": "<transcript_lang>",
         "is_finance_related": "<conclusion_is_finance_related_boolean>"
     }
