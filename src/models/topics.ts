@@ -1,6 +1,7 @@
 // topics.ts
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../../config/database'; // Adjust this import based on your actual Sequelize connection setup
+import openai_analyse_ids from './openai_analyse_ids';
 
 class topics extends Model {
     declare id: string;
@@ -10,6 +11,7 @@ class topics extends Model {
     declare summary: string;
     declare sentiment: string;
     declare factualQuality: string;
+    declare openaiAnalyseId: number;
 }
 
 topics.init({
@@ -19,12 +21,16 @@ topics.init({
     title: { type: DataTypes.STRING(100), allowNull: true },
     summary: { type: DataTypes.TEXT, allowNull: true },
     sentiment: { type: DataTypes.STRING(45), allowNull: true },
-    factualQuality: { type: DataTypes.STRING(45), allowNull: true }
+    factualQuality: { type: DataTypes.STRING(45), allowNull: true },
+    openaiAnalyseId: { type: DataTypes.INTEGER, allowNull: false }
 }, {
     sequelize,
     modelName: 'topics',
     tableName: 'topics', // Make sure this matches exactly with your table name
 });
+
+topics.belongsTo(openai_analyse_ids, { foreignKey: 'openaiAnalyseId', targetKey: 'id' });
+openai_analyse_ids.hasMany(topics, { foreignKey: 'openaiAnalyseId', onDelete: 'CASCADE' });
 
 sequelize.sync({ force: false, alter: false }).then(() => {
     console.log("-I- All topcis models were synchronized successfully.");

@@ -2,6 +2,7 @@ import { openaiNumTokensFromString } from '../utils/utils';
 import openai_prompts from '../models/openai_prompts';
 import youtube_videos from '../models/youtube_videos';
 import youtube_channels from '../models/youtube_channels';
+import openai_analyse_ids from '../models/openai_analyse_ids';
 import topics from '../models/topics';
 import OpenAI from 'openai';
 import { Op } from 'sequelize';
@@ -12,6 +13,7 @@ import countries from '../models/countries';
 import assets from '../models/assets';
 import keywords from '../models/keywords';
 import participant_sentiments from '../models/participant_sentiments';
+
 
 // Define your API key and the model you want to use
 const openai = new OpenAI(process.env.OPENAI_API_KEY as any); // Provide a default value for OPENAI_API_KEY
@@ -25,7 +27,6 @@ async function queryOpenAI(prompt: string, isJson = true, maxTokenSize = MODEL_T
         console.log(`-E- The number of tokens in the prompt exceeds the limit of ${MODEL_TOKEN_LIMIT}`);
         return
     }
-
     try {
         const response = await openai.chat.completions.create({
             model: MODEL,
@@ -40,7 +41,7 @@ async function queryOpenAI(prompt: string, isJson = true, maxTokenSize = MODEL_T
                 "type": isJson ? "json_object" : "text"
             }
         });
-        return response.choices[0];
+        return response;
     } catch (error) {
         console.error('-E- Error:', error);
         return
@@ -65,10 +66,12 @@ export async function analyseYoutubeVideoTitle(videoId: string = '', forceUpdate
 
                 // query the openai API
                 const response = await queryOpenAI(fullPrompt);
-                if (response !== undefined) {
+                if (response?.choices[0] !== undefined) {
+                    const openAiResponse = response.choices[0];
+
                     // check if response.message.content value is a valid JSON object
                     try {
-                        const responseJson = JSON.parse((response as any).message.content);
+                        const responseJson = JSON.parse((openAiResponse as any).message.content);
                         // update the video record with the response
                         await video.update({
                             titleInvestmentScore: responseJson.is_title_investment_related,
@@ -100,9 +103,10 @@ export async function analyseYoutubeVideoTitle(videoId: string = '', forceUpdate
                     // query the openai API
                     const response = await queryOpenAI(fullPrompt);
                     if (response !== undefined) {
+                        const openAiResponse = response.choices[0];
                         // check if response.message.content value is a valid JSON object
                         try {
-                            const responseJson = JSON.parse((response as any).message.content);
+                            const responseJson = JSON.parse((openAiResponse as any).message.content);
                             // update the video record with the response
                             await videoItem.update({
                                 titleInvestmentScore: responseJson.is_title_investment_related,
@@ -124,13 +128,13 @@ export async function analyseYoutubeVideoTranscript(videoId: string = '', forceU
     // process video title if videoId is provided, else process all video titles in youtube_videos table
     if (videoId) {
         //get video title from youtube_videos table
-        let queryParam = { id: videoId, transcript: { [Op.not]: null }, summary: null } as any
+        let queryParam = { id: videoId, transcript: { [Op.not]: null }, openaiAnalyseId: null } as any
         if (forceUpdate) {
-            delete queryParam.summary;
+            delete queryParam.openaiAnalyseId;
         }
         const video = await youtube_videos.findOne({ where: queryParam });
         if (video) {
-
+            // TODO: if no videoId, then process all videos with null openaiAnalyseId
             // TODO: filter long descriptions
             // TODO: filter long transcripts
             const openaiPrompt = await openai_prompts.findOne({ where: { key: 'VIDEO_TRANSCRIPT' } });
@@ -138,17 +142,16 @@ export async function analyseYoutubeVideoTranscript(videoId: string = '', forceU
                 const { prompt, responseJsonFormat } = openaiPrompt;
                 // get channel name from youtube_channel table using video.channelId
                 const channel = await youtube_channels.findOne({ where: { id: video.channelId } });
-                const fullPrompt = `channel_name: ${channel?.channelName}; video_title: ${video.title}; video_description: ${video.description}; video_transcript: ${video.transcript}; ${JSON.stringify(responseJsonFormat)}\n\n${prompt}`;
+                const fullPrompt = `channel_name: ${channel?.channelName}; video_title: ${video.title}; video_description: ${video.description}; video_transcript: ${video.transcript}; ${prompt}\n${JSON.stringify(responseJsonFormat)}`;
 
                 // query the openai API
                 console.time('openai_query');
+                console.log(fullPrompt)
                 const response = await queryOpenAI(fullPrompt);
                 console.timeEnd('openai_query');
-                if (response !== undefined) {
-                    // check if response.message.content value is a valid JSON object
+                if (response?.choices[0] !== undefined) {
                     try {
-                        const responseJson = JSON.parse((response as any).message.content);
-                        await recordAnalysedYoutubeVideoData(video, responseJson);
+                        await recordAnalysedYoutubeVideoData(video, response);
 
                     } catch (error) {
                         console.error('-E- Error parsing JSON:', error);
@@ -161,27 +164,40 @@ export async function analyseYoutubeVideoTranscript(videoId: string = '', forceU
     return null
 }
 
-async function recordAnalysedYoutubeVideoData(video: any, responseJson: any) {
-    const transaction = await sequelize.transaction();
-    console.log("debug0", responseJson)
+async function recordAnalysedYoutubeVideoData(video: any, response: any) {
+    const openAiResponse = response.choices[0];
+    const responseJson = JSON.parse((openAiResponse as any).message.content);
+    console.log("debug", responseJson)
 
+    const transaction = await sequelize.transaction();
     try {
+
+        // save prompt tokens and completion tokens in openai_analyse_ids table
+        const openaiAnalyseId = await openai_analyse_ids.create({
+            platform: 'youtube_videos',
+            associatedId: video.id,
+            model: MODEL,
+            promptTokens: response.usage.prompt_tokens,
+            completionTokens: response.usage.completion_tokens,
+        }, { transaction });
+        const openaiAnalyseIdValue = openaiAnalyseId.id;
+
         // Perform database operations within the transaction
         await video.update({
-            analysedTitle: responseJson.title.text,
-            titleSentiment: responseJson.title.title_sentiment,
-            summary: responseJson.conclusion.summary,
-            transcriptQuality: responseJson.conclusion.transcript_quality_score,
-            transcriptLang: responseJson.conclusion.transcript_lang,
+            analysedTitle: responseJson.analysed_video_title,
+            titleSentiment: responseJson.overall_sentiment.toLowerCase(),
+            summary: responseJson.overall_summary,
+            transcriptQuality: responseJson.transcript_quality_score.toLowerCase(),
+            transcriptLang: responseJson.transcript_lang.toLowerCase(),
             aiModel: MODEL,
-            isFinance: responseJson.conclusion.is_finance_related,
+            openaiAnalyseId: openaiAnalyseIdValue,
+            isFinance: responseJson.video_finance_related
         }, { transaction });
 
         // process topic_discussed
         if (responseJson.topic_discussed.length > 0) {
             // loop through topic_discussed
             for (const topic of responseJson.topic_discussed) {
-                console.log("debug topic", topic.topic)
                 const topicId = (md5(video.id + topic.topic)).substring(0, 10)
 
                 // topics table
@@ -191,8 +207,9 @@ async function recordAnalysedYoutubeVideoData(video: any, responseJson: any) {
                     associatedId: video.id,
                     title: topic.topic,
                     summary: topic.summary,
-                    sentiment: topic.sentiment,
-                    factualQuality: topic.factual_quality_score,
+                    sentiment: topic.sentiment.toLowerCase(),
+                    factualQuality: topic.factual_quality_score.toLowerCase(),
+                    openaiAnalyseId: openaiAnalyseIdValue
                 }, { transaction });
 
                 if (topic.market_type.length > 0) {
@@ -200,11 +217,12 @@ async function recordAnalysedYoutubeVideoData(video: any, responseJson: any) {
                     for (let market of topic.market_type) {
                         market = market.toLowerCase();
                         await markets.upsert({
-                            id: (md5(video.id + market)).substring(0, 10),
+                            id: (md5(video.id + market.toLowerCase())).substring(0, 10),
                             platform: 'youtube_videos',
                             associatedId: video.id,
                             topicId: topicId,
-                            marketType: market,
+                            marketType: market.toLowerCase(),
+                            openaiAnalyseId: openaiAnalyseIdValue
                         }, { transaction });
                     }
                 }
@@ -213,11 +231,12 @@ async function recordAnalysedYoutubeVideoData(video: any, responseJson: any) {
                     for (let country of topic.related_country) {
                         country = country.toLowerCase();
                         await countries.upsert({
-                            id: (md5(video.id + country)).substring(0, 10),
+                            id: (md5(video.id + country.toLowerCase())).substring(0, 10),
                             platform: 'youtube_videos',
                             associatedId: video.id,
                             topicId: topicId,
-                            countryName: country
+                            countryName: country.toLowerCase(),
+                            openaiAnalyseId: openaiAnalyseIdValue
                         }, { transaction });
                     }
                 }
@@ -227,11 +246,12 @@ async function recordAnalysedYoutubeVideoData(video: any, responseJson: any) {
                     for (let asset of topic.asset_discussed) {
                         asset = asset.toLowerCase();
                         await assets.upsert({
-                            id: (md5(video.id + asset)).substring(0, 10),
+                            id: (md5(video.id + asset.toLowerCase())).substring(0, 10),
                             platform: 'youtube_videos',
                             associatedId: video.id,
                             topicId: topicId,
-                            assetName: asset,
+                            assetName: asset.toLowerCase(),
+                            openaiAnalyseId: openaiAnalyseIdValue
                         }, { transaction });
                     }
                 }
@@ -241,11 +261,12 @@ async function recordAnalysedYoutubeVideoData(video: any, responseJson: any) {
                     for (let keyword of topic.keywords) {
                         keyword = keyword.toLowerCase();
                         await keywords.upsert({
-                            id: (md5(video.id + keyword)).substring(0, 10),
+                            id: (md5(video.id + keyword.toLowerCase())).substring(0, 10),
                             platform: 'youtube_videos',
                             associatedId: video.id,
                             topicId: topicId,
-                            word: keyword
+                            word: keyword.toLowerCase(),
+                            openaiAnalyseId: openaiAnalyseIdValue
                         }, { transaction });
                     }
                 }
@@ -258,18 +279,19 @@ async function recordAnalysedYoutubeVideoData(video: any, responseJson: any) {
                 // assets table
                 asset.asset_name = asset.asset_name.toLowerCase();
                 await assets.upsert({
-                    id: (md5(video.id + asset.asset_name)).substring(0, 10),
+                    id: (md5(video.id + asset.asset_name.toLowerCase())).substring(0, 10),
                     platform: 'youtube_videos',
                     associatedId: video.id,
-                    assetName: asset.asset_name,
-                    country: asset.related_country,
-                    marketType: asset.market_type,
+                    assetName: asset.asset_name.toLowerCase(),
+                    country: asset.related_country.toLowerCase(),
+                    marketType: asset.market_type.toLowerCase(),
                     weight: asset.weight,
-                    sentiment: asset.overall_sentiment,
-                    shortTermSentiment: asset.prediction.short_term,
-                    longTermSentiment: asset.prediction.long_term,
+                    sentiment: asset.overall_sentiment.toLowerCase(),
+                    shortTermSentiment: asset.prediction.short_term.toLowerCase(),
+                    longTermSentiment: asset.prediction.long_term.toLowerCase(),
                     strength: asset.strength,
-                    weakness: asset.weakness
+                    weakness: asset.weakness,
+                    openaiAnalyseId: openaiAnalyseIdValue
                 }, { transaction });
 
                 if (asset.participant.length > 0) {
@@ -277,13 +299,14 @@ async function recordAnalysedYoutubeVideoData(video: any, responseJson: any) {
                     for (let participant of asset.participant) {
                         participant.name = participant.name.toLowerCase();
                         await participant_sentiments.upsert({
-                            id: (md5(video.id + participant.name)).substring(0, 10),
+                            id: (md5(video.id + participant.name.toLowerCase())).substring(0, 10),
                             platform: 'youtube_videos',
                             associatedId: video.id,
-                            assetName: asset.asset_name,
-                            participantName: participant.name,
-                            sentiment: participant.sentiment,
-                            emotion: participant.emotion
+                            assetName: asset.asset_name.toLowerCase(),
+                            participantName: participant.name.toLowerCase(),
+                            sentiment: participant.sentiment.toLowerCase(),
+                            emotion: participant.emotion.toLowerCase(),
+                            openaiAnalyseId: openaiAnalyseIdValue
                         }, { transaction });
                     }
                 }

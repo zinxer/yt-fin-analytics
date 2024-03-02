@@ -5,7 +5,7 @@ import { analyseYoutubeVideoTitle, analyseYoutubeVideoTranscript } from './src/s
 // Add channel videos into database
 (async () => {
     try {
-        const channelId = 'UCxxxxxxxxxxxxxxxxxxxxxx';
+        // const channelId = 'UCxxxxxxxxxxxxxxxxxxxxxx';
 
         // // Save channel details
         // const savedChannel = await saveChannel(channelId);
@@ -15,7 +15,7 @@ import { analyseYoutubeVideoTitle, analyseYoutubeVideoTranscript } from './src/s
         //     console.log('-E- Error saving channel:', channelId);
         // }
 
-        // Save channel videos
+        // //Save channel videos
         // const savedVideos = await saveChannelVideos(channelId, 50);
         // if (savedVideos) {
         //     console.log('-I- Videos saved successfully:', savedVideos.length);
@@ -23,9 +23,9 @@ import { analyseYoutubeVideoTitle, analyseYoutubeVideoTranscript } from './src/s
         //     console.log('-I- No videos saved', channelId);
         // }
 
-        // analyze all video titles from youtube_videos table
-        //await analyseYoutubeVideoTitle();
-        //await retrieveAndSaveYoutubeVideoTranscript();
+        // //analyze all video titles from youtube_videos table
+        // await analyseYoutubeVideoTitle();
+        // await retrieveAndSaveYoutubeVideoTranscript();
         await analyseYoutubeVideoTranscript('VIDEO_ID_PLACEHOLDER')
 
 

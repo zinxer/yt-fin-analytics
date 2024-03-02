@@ -1,6 +1,7 @@
 // assets.ts
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../../config/database'; // Adjust this import based on your actual Sequelize connection setup
+import openai_analyse_ids from './openai_analyse_ids';
 
 class assets extends Model {
     declare id: string;
@@ -16,6 +17,7 @@ class assets extends Model {
     declare longTermSentiment: string;
     declare strength: string;
     declare weakness: string;
+    declare openaiAnalyseId: number;
 }
 
 assets.init({
@@ -30,13 +32,17 @@ assets.init({
     sentiment: { type: DataTypes.STRING(100), allowNull: true },
     shortTermSentiment: { type: DataTypes.STRING(100), allowNull: true },
     longTermSentiment: { type: DataTypes.STRING(100), allowNull: true },
-    strength: { type: DataTypes.STRING(100), allowNull: true },
-    weakness: { type: DataTypes.STRING(100), allowNull: true }
+    strength: { type: DataTypes.TEXT, allowNull: true },
+    weakness: { type: DataTypes.TEXT, allowNull: true },
+    openaiAnalyseId: { type: DataTypes.INTEGER, allowNull: false }
 }, {
     sequelize,
     modelName: 'assets',
     tableName: 'assets', // Make sure this matches exactly with your table name
 });
+
+assets.belongsTo(openai_analyse_ids, { foreignKey: 'openaiAnalyseId', targetKey: 'id' });
+openai_analyse_ids.hasMany(assets, { foreignKey: 'openaiAnalyseId', onDelete: 'CASCADE' });
 
 sequelize.sync({ force: false, alter: false }).then(() => {
     console.log("-I- All assets models were synchronized successfully.");

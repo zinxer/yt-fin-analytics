@@ -1,4 +1,4 @@
 {
-    "is_title_investment_related": <high_medium_low>,
-    "market_type": <market_type>
+    "is_title_investment_related": "<high_medium_low>",
+    "market_type": "<market_type>"
 }

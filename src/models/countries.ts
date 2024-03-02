@@ -1,6 +1,7 @@
 // countries.ts
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../../config/database'; // Adjust this import based on your actual Sequelize connection setup
+import openai_analyse_ids from './openai_analyse_ids';
 
 class countries extends Model {
     declare id: string;
@@ -8,6 +9,7 @@ class countries extends Model {
     declare associatedId: string;
     declare topicId: string;
     declare countryName: string;
+    declare openaiAnalyseId: number;
 }
 
 countries.init({
@@ -16,11 +18,15 @@ countries.init({
     associatedId: { type: DataTypes.STRING(45), allowNull: false },
     topicId: { type: DataTypes.STRING(45), allowNull: true },
     countryName: { type: DataTypes.STRING(100), allowNull: false },
+    openaiAnalyseId: { type: DataTypes.INTEGER, allowNull: false }
 }, {
     sequelize,
     modelName: 'countries',
     tableName: 'countries', // Make sure this matches exactly with your table name
 });
+
+countries.belongsTo(openai_analyse_ids, { foreignKey: 'openaiAnalyseId', targetKey: 'id' });
+openai_analyse_ids.hasMany(countries, { foreignKey: 'openaiAnalyseId', onDelete: 'CASCADE'  });
 
 sequelize.sync({ force: false, alter: false }).then(() => {
     console.log("-I- All countries models were synchronized successfully.");

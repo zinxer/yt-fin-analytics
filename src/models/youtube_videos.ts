@@ -23,6 +23,7 @@ class youtube_videos extends Model {
     declare transcriptQuality: string;
     declare transcriptLang: string;
     declare aiModel: string;
+    declare openaiAnalyseId: number;
     declare isFinance: boolean;
     declare publishedAt: Date;
     declare createdAt: Date;
@@ -49,6 +50,7 @@ youtube_videos.init({
     transcriptQuality: { type: DataTypes.STRING(45), allowNull: true },
     transcriptLang: { type: DataTypes.STRING(45), allowNull: true },
     aiModel: { type: DataTypes.STRING(45), allowNull: true },
+    openaiAnalyseId: { type: DataTypes.INTEGER, allowNull: true, defaultValue: null },
     isFinance: { type: DataTypes.BOOLEAN, allowNull: true },
     publishedAt: { type: DataTypes.DATE, allowNull: false },
     createdAt: { type: DataTypes.DATE, allowNull: false },

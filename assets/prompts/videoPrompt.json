@@ -1,8 +1,10 @@
 {
-    "title": {
-        "text": "<analysed_video_title>",
-        "title_sentiment": "<title_sentiment>"
-    },
+    "analysed_video_title": "<analysed_video_title>",
+    "overall_sentiment": "<bullish_neutral_bearish>",
+    "overall_summary": "<overall_summary>",
+    "transcript_quality_score": "<high_medium_low>",
+    "transcript_lang": "<transcript_lang_in_iso639>",
+    "video_finance_related": "<true_or_false>",
     "participants": [
         "<participant1>",
         "<participant2>",
@@ -17,33 +19,33 @@
             "participant": [
                 {
                     "name": "<participant1>",
-                    "sentiment": "<asset1_participant1_sentiment>",
+                    "sentiment": "<bullish_neutral_bearish>",
                     "emotion": "<asset1_participant1_emotion>"
                 },
                 {
                     "name": "<participant2>",
-                    "sentiment": "<asset1_participant2_sentiment>",
+                    "sentiment": "<bullish_neutral_bearish>",
                     "emotion": "<asset1_participant2_emotion>"
                 },
                 {
                     "name": "<participant3>",
-                    "sentiment": "<asset1_participant3_sentiment>",
+                    "sentiment": "<bullish_neutral_bearish>",
                     "emotion": "<asset1_participant3_emotion>"
                 },
                 {
                     "name": "<participant4>",
-                    "sentiment": "<asset1_participant4_sentiment>",
+                    "sentiment": "<bullish_neutral_bearish>",
                     "emotion": "<asset1_participant4_emotion>"
                 }
             ],
             "overall_sentiment": "<asset1_overall_sentiment>",
             "weight": "<asset1_weight_outof100>",
             "prediction": {
-                "short_term": "<asset1_short_term_sentiment>",
-                "long_term": "<asset1_long_term_sentiment>"
+                "short_term": "<bullish_neutral_uncertain_bearish>",
+                "long_term": "<bullish_neutral_uncertain_bearish>"
             },
-            "strength": "<asset1_strength>",
-            "weakness": "<asset1_weakness>"
+            "strength": "describe asset's strength or empty",
+            "weakness": "describe asset's weakness or empty"
         },
         {
             "asset_name": "<asset2>",
@@ -52,33 +54,33 @@
             "participant": [
                 {
                     "name": "<participant1>",
-                    "sentiment": "<asset1_participant1_sentiment>",
+                    "sentiment": "<bullish_neutral_bearish>",
                     "emotion": "<asset1_participant1_emotion>"
                 },
                 {
                     "name": "<participant2>",
-                    "sentiment": "<asset1_participant2_sentiment>",
+                    "sentiment": "<bullish_neutral_bearish>",
                     "emotion": "<asset1_participant2_emotion>"
                 },
                 {
                     "name": "<participant3>",
-                    "sentiment": "<asset1_participant3_sentiment>",
+                    "sentiment": "<bullish_neutral_bearish>",
                     "emotion": "<asset1_participant3_emotion>"
                 },
                 {
                     "name": "<participant4>",
-                    "sentiment": "<asset1_participant4_sentiment>",
+                    "sentiment": "<bullish_neutral_bearish>",
                     "emotion": "<asset1_participant4_emotion>"
                 }
             ],
-            "overall_sentiment": "<asset2_overall_sentiment>",
+            "overall_sentiment": "<bullish_neutral_bearish>",
             "weight": "<asset2_weight_outof100>",
             "prediction": {
-                "short_term": "<asset2_short_term_sentiment>",
-                "long_term": "<asset2_long_term_sentiment>"
+                "short_term": "<bullish_neutral_uncertain_bearish>",
+                "long_term": "<bullish_neutral_uncertain_bearish>"
             },
-            "strength": "<asset2_strength>",
-            "weakness": "<asset2_weakness>"
+            "strength": "describe asset's strength or empty",
+            "weakness": "describe asset's weakness or empty"
         },
         {
             "asset_name": "<asset3>",
@@ -90,33 +92,33 @@
             "participant": [
                 {
                     "name": "<participant1>",
-                    "sentiment": "<asset1_participant1_sentiment>",
+                    "sentiment": "<bullish_neutral_bearish>",
                     "emotion": "<asset1_participant1_emotion>"
                 },
                 {
                     "name": "<participant2>",
-                    "sentiment": "<asset1_participant2_sentiment>",
+                    "sentiment": "<bullish_neutral_bearish>",
                     "emotion": "<asset1_participant2_emotion>"
                 },
                 {
                     "name": "<participant3>",
-                    "sentiment": "<asset1_participant3_sentiment>",
+                    "sentiment": "<bullish_neutral_bearish>",
                     "emotion": "<asset1_participant3_emotion>"
                 },
                 {
                     "name": "<participant4>",
-                    "sentiment": "<asset1_participant4_sentiment>",
+                    "sentiment": "<bullish_neutral_bearish>",
                     "emotion": "<asset1_participant4_emotion>"
                 }
             ],
-            "overall_sentiment": "<asset3_overall_sentiment>",
+            "overall_sentiment": "<bullish_neutral_bearish>",
             "weight": "<asset3_weight_outof100>",
             "prediction": {
-                "short_term": "<asset3_short_term_sentiment>",
-                "long_term": "<asset3_long_term_sentiment>"
+                "short_term": "<bullish_neutral_uncertain_bearish>",
+                "long_term": "<bullish_neutral_uncertain_bearish>"
             },
-            "strength": "<asset3_strength>",
-            "weakness": "<asset3_weakness>"
+            "strength": "describe asset's strength or empty",
+            "weakness": "describe asset's weakness or empty"
         }
     ],
     "topic_discussed": [
@@ -140,7 +142,7 @@
             ],
             "sentiment": "<topic1_sentiment>",
             "summary": "<topic1_summary>",
-            "factual_quality_score": "<topic1_factual_quality_score>"
+            "factual_quality_score": "<high_medium_low>"
         },
         {
             "topic": "<topic2>",
@@ -161,13 +163,7 @@
             ],
             "sentiment": "<topic2_sentiment>",
             "summary": "<topic2_summary>",
-            "factual_quality_score": "<topic2_factual_quality_score>"
+            "factual_quality_score": "<high_medium_low>"
         }
-    ],
-    "conclusion": {
-        "transcript_quality_score": "<transcript_quality_score>",
-        "summary": "<conclusion_summary>",
-        "transcript_lang": "<transcript_lang>",
-        "is_finance_related": "<conclusion_is_finance_related_boolean>"
-    }
+    ]
 }
