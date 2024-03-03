@@ -6,6 +6,7 @@ class youtube_channels extends Model {
     declare id: string;
     declare customUrl: string | null;
     declare channelName: string | null;
+    declare playlistId: string;
     declare url: string;
     declare description: string;
     declare thumbnailUrl: string;
@@ -20,6 +21,7 @@ youtube_channels.init({
     id: { type: DataTypes.STRING(45), primaryKey: true, unique: true },
     customUrl: { type: DataTypes.STRING(45), allowNull: true, unique: true },
     channelName: { type: DataTypes.STRING(100), allowNull: true },
+    playlistId: { type: DataTypes.STRING(45), allowNull: false },
     url: { type: DataTypes.TEXT, allowNull: false },
     description: { type: DataTypes.TEXT, allowNull: true },
     thumbnailUrl: { type: DataTypes.TEXT, allowNull: true },

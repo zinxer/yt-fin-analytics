@@ -19,9 +19,10 @@ interface ChannelData {
     publishedAt: Date;
     thumbnailUrl: string;
     country?: string;
-    viewCount: number;
-    subscriberCount?: number;
-    videoCount: number;
+    viewCount: number | null;
+    subscriberCount?: number | null;
+    videoCount: number | null;
+    playlistId: string;
 }
 
 interface VideoListOptions {
@@ -48,9 +49,8 @@ async function searchChannels(searchQuery: string) {
     }
 }
 
-async function getChannelDataById(channelId: string): Promise<ChannelData | null> {
-    const url = `${process.env.YOUTUBE_API_BASE_URL}/channels?part=snippet,contentDetails,statistics&id=${channelId}&key=${API_KEY}`;
-
+async function getChannelDataById(channelId: string, light: boolean = true): Promise<ChannelData | null> {
+    const url = `${process.env.YOUTUBE_API_BASE_URL}/channels?part=snippet${light ? '' : ',contentDetails,statistics'}&id=${channelId}&key=${API_KEY}`;
     try {
         const response = await axios.get(url);
         if (response.data.items.length > 0) {
@@ -64,9 +64,10 @@ async function getChannelDataById(channelId: string): Promise<ChannelData | null
                 publishedAt: new Date(channel.snippet.publishedAt),
                 thumbnailUrl: channel.snippet.thumbnails.high.url,
                 country: channel.snippet.country,
-                viewCount: parseInt(channel.statistics.viewCount, 10),
-                subscriberCount: channel.statistics.hiddenSubscriberCount ? undefined : parseInt(channel.statistics.subscriberCount, 10),
-                videoCount: parseInt(channel.statistics.videoCount, 10),
+                viewCount: channel.statistics ? parseInt(channel.statistics.viewCount, 10) : null,
+                subscriberCount: channel.statistics ? channel.statistics.hiddenSubscriberCount ? undefined : parseInt(channel.statistics.subscriberCount, 10) : null,
+                videoCount: channel.statistics ? parseInt(channel.statistics.videoCount, 10) : null,
+                playlistId: 'UU' + channel.id.slice(2)
             };
             return data;
         }
@@ -77,6 +78,37 @@ async function getChannelDataById(channelId: string): Promise<ChannelData | null
     }
 }
 
+async function getChannelDataByHandle(handle: string, light: boolean = true) {
+    const url = `${process.env.YOUTUBE_API_BASE_URL}/channels?part=snippet${light ? '' : ',contentDetails,statistics'}&forHandle=${handle}&key=${API_KEY}`;
+    try {
+        const response = await axios.get(url);
+        if (response.data.items.length > 0) {
+            const channel = response.data.items[0];
+            const data: ChannelData = {
+                id: channel.id,
+                channelName: channel.snippet.title,
+                description: channel.snippet.description,
+                customUrl: channel.snippet.customUrl,
+                url: `https://www.youtube.com/channel/${channel.id}`,
+                publishedAt: new Date(channel.snippet.publishedAt),
+                thumbnailUrl: channel.snippet.thumbnails.high.url,
+                country: channel.snippet.country,
+                viewCount: channel.statistics ? parseInt(channel.statistics.viewCount, 10) : null,
+                subscriberCount: channel.statistics ? channel.statistics.hiddenSubscriberCount ? undefined : parseInt(channel.statistics.subscriberCount, 10) : null,
+                videoCount: channel.statistics ? parseInt(channel.statistics.videoCount, 10) : null,
+                playlistId: 'UU' + channel.id.slice(2)
+            };
+            return data;
+        }
+        return null; // No channel found
+    } catch (error) {
+        console.error('Error fetching channel data:', error);
+        return null;
+    }
+
+}
+
+// Note that Youtube search endpoint consumes 100 units each time it is called
 async function getChannelVideos(channelId: string, fromTime: number = 0, limit: number = 50): Promise<string[]> {
     const url = `${process.env.YOUTUBE_API_BASE_URL}/search?key=${API_KEY}&channelId=${channelId}&part=snippet,id&order=date&type=video&maxResults=${limit}`;
     try {
@@ -115,7 +147,7 @@ async function getVideoDetails(videoIds: string[]) {
     }
 }
 
-async function listChannelVideosDetailed(channelId: string, fromTime: number, limit: number) {
+async function listChannelVideosDetailedById(channelId: string, fromTime: number, limit: number) {
     const videoIds = await getChannelVideos(channelId, fromTime, limit);
 
     if (videoIds as any) {
@@ -137,8 +169,8 @@ async function getYoutubeTranscriptFromVideoId(videoId: string) {
     }
 }
 
-export async function saveChannel(channelId: string) {
-    const channelData = await getChannelDataById(channelId);
+export async function updateOrSaveChannelById(channelId: string, light: boolean = true) {
+    const channelData = await getChannelDataById(channelId, light);
     if (channelData) {
         const channel = await youtube_channels.findOne({ where: { id: channelId } });
         if (channel) {
@@ -152,25 +184,58 @@ export async function saveChannel(channelId: string) {
     return null
 }
 
-export async function saveChannelVideos(channelId: string, limit: number = 50) {
-    const channelData = await getChannelDataById(channelId);
+export async function updateOrSaveChannelByHandle(handle: string, light: boolean = true) {
+    const channelData = await getChannelDataByHandle(handle, light);
     if (channelData) {
-        const fromTime = channelData.publishedAt.getTime(); // get videos since the channel was created
-        const videoDetails = await listChannelVideosDetailed(channelId, fromTime, limit);
-        if (videoDetails) {
-            const videoIds = videoDetails.map((video: any) => video.id);
-            const existingVideos = await youtube_videos.findAll({
-                where: { id: videoIds }
-            });
-            const existingVideoIds = existingVideos.map((video: any) => video.id);
-            const newVideos = videoDetails.filter((video: any) => !existingVideoIds.includes(video.id));
-            if (newVideos.length > 0) {
-                await youtube_videos.bulkCreate(newVideos);
-                return newVideos;
-            }
+        const channel = await youtube_channels.findOne({ where: { customUrl: { [Op.or]: [handle, `@${handle}`] } } });
+        if (channel) {
+            await channel.update(channelData);
+            return channelData
+        } else {
+            await youtube_channels.create(channelData as any);
+            return channelData
         }
     }
-    return null;
+    return null
+}
+
+export async function retrieveAndSaveChannelVideos(playlistId: string, limit: number = 50) {
+    const url = `${process.env.YOUTUBE_API_BASE_URL}/playlistItems?key=${API_KEY}&playlistId=${playlistId}&part=snippet&maxResults=${limit}`;
+
+    try {
+        const response = await axios.get(url);
+        const videos = response.data.items;
+        if (videos.length > 0) {
+            const videoDataArray = []; // Array to store videoData
+
+            // Loop through the videos
+            for (const video of videos) {
+                const videoId = video.snippet.resourceId.videoId;
+                const existingVideo = await youtube_videos.findOne({ where: { id: videoId } });
+                if (existingVideo) {
+                    continue; // Skip if video already exists in the database
+                }
+
+                const videoData = {
+                    id: videoId,
+                    channelId: video.snippet.channelId,
+                    url: `https://www.youtube.com/watch?v=${videoId}`,
+                    title: video.snippet.title,
+                    description: video.snippet.description,
+                    thumbnailUrl: video.snippet.thumbnails.high.url,
+                    publishedAt: new Date(video.snippet.publishedAt)
+                };
+                videoDataArray.push(videoData); // Add videoData to the array
+            }
+
+            // Add videoData to the database using bulkCreate
+            await youtube_videos.bulkCreate(videoDataArray);
+            return videoDataArray;
+        }
+    } catch (error) {
+        console.log(error);
+        return []
+    }
 }
 
 export async function retrieveAndSaveYoutubeVideoTranscript(videoId?: string, optimise?: boolean) {
@@ -209,7 +274,7 @@ export async function retrieveAndSaveYoutubeVideoTranscript(videoId?: string, op
             }
             return videos;
         } else {
-            const videos = await youtube_videos.findAll({where: {transcript: null}});
+            const videos = await youtube_videos.findAll({ where: { transcript: null } });
             for (const video of videos) {
                 const transcript = await getYoutubeTranscriptFromVideoId(video.id);
                 if (transcript) {
@@ -225,26 +290,3 @@ export async function retrieveAndSaveYoutubeVideoTranscript(videoId?: string, op
     }
     return null;
 }
-/*
-//listChannelVideosDetailed('UCxxxxxxxxxxxxxxxxxxxxxx', 10).then(console.log).catch(console.error);
-const videoId = 'rKD3s7Y3mxA';
-(async () => {
-    try {
-        const videoDetailsRes = await getVideoDetails([videoId]);
-        console.log("channel_name", (await getChannelDataById(videoDetailsRes[0].channelId))?.title);
-        console.log("video_title", videoDetailsRes[0].title);
-        console.log(`video_description ${videoDetailsRes[0].description}`);
-
-        const videoTranscriptRes = await getYoutubeTranscriptFromVideoId(videoId)
-        console.log("video_transcript", videoTranscriptRes)
-        // get file contents of gptTranscript/video_discussion.json
-        const videoTranscriptJsonFormat = JSON.parse(fs.readFileSync('./gptJsonResponseFormat/video_discussion.json', 'utf8'));
-        console.log(`JSON Format ${JSON.stringify(videoTranscriptJsonFormat)}`)
-        console.log(`
-        You are a financial analyst and the transcript you have received is from a video by channel_name titled video_title with description video_description. Rephrase the title text in a way that you see fitting for the video content and provide an overall sentiment accordingly. Participants are individuals being interviewed or discussing the subject matter, and are not the individuals being referred to in the context. Ensure asset names accurately reflect the subjects discussed and correlate with the details provided in each section. Suggest as many asset discussed from the transcript. Also, indicate a weightage value for the asset discussed in comparison to other assets discussed; the total weightage value of assets discussed should be 100. Do not list any assets other than financial securities in assets_discussed. market types should only be either equity, commodity, bond, crypto, and currency; Leave market_type empty if it does not fall in those categories. If the asset or topic is associated with a specific country, please include the alpha-3 country code in the related_country field of the JSON response. Do not leave related_country empty, based on your knowledge guess the country, else use global as default value if you are unsure. Sentiments should be categorized as bullish, bearish, neutral, or uncertain. Do not leave topics_discussed and conclusions empty; include at minimum the top 3 topics. For transcript_lang, use ISO 639 language codes. You simple to understand words and provide the result only in JSON format response according to the example properties above; you may modify the values accordingly.
-        `)
-    } catch (error) {
-        console.error(error);
-    }
-})();
-*/
