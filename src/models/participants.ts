@@ -1,35 +1,26 @@
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../../config/database';
 
-class topics extends Model {
-    public topicId!: string;
-    public videoId!: number;
-    public title!: string;
-    public summary!: string;
+class participants extends Model {
+    public participantId!: string;
+    public name!: string;
+    public affiliation!: string;
     public readonly createdAt!: Date;
     public readonly updatedAt!: Date;
 }
 
-topics.init({
-    topicId: {
+participants.init({
+    participantId: {
         type: DataTypes.STRING(255),
         primaryKey: true,
         allowNull: false
     },
-    videoId: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        references: {
-            model: 'videos',
-            key: 'videoId'
-        }
-    },
-    title: {
+    name: {
         type: DataTypes.STRING(255),
         allowNull: false
     },
-    summary: {
-        type: DataTypes.TEXT,
+    affiliation: {
+        type: DataTypes.STRING(255),
         allowNull: true
     },
     createdAt: {
@@ -42,9 +33,9 @@ topics.init({
     }
 }, {
     sequelize,
-    modelName: 'topics',
-    tableName: 'topics',
+    modelName: 'participants',
+    tableName: 'participants',
     timestamps: true
 });
 
-export default topics;
+export default participants;

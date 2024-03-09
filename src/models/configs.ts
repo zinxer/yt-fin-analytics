@@ -38,8 +38,4 @@ configs.init(
   }
 );
 
-sequelize.sync({ force: false, alter: true }).then(() => {
-  console.log("-I- All configs models were synchronized successfully.");
-});
-
 export default configs;

@@ -1,35 +1,37 @@
-// keywords.ts
 import { Model, DataTypes } from 'sequelize';
-import sequelize from '../../config/database'; // Adjust this import based on your actual Sequelize connection setup
-import openai_analyse_ids from './openai_analyse_ids';
+import sequelize from '../../config/database';
 
 class keywords extends Model {
-    declare id: string;
-    declare platform: string;
-    declare associatedId: string;
-    declare topicId: string;
-    declare word: string;
-    declare openaiAnalyseId: number;
+    public keywordId!: number;
+    public keyword!: string;
+    public readonly createdAt!: Date;
+    public readonly updatedAt!: Date;
 }
 
 keywords.init({
-    id: { type: DataTypes.STRING(45), primaryKey: true, unique: true },
-    platform: { type: DataTypes.STRING(45), allowNull: false },
-    associatedId: { type: DataTypes.STRING(45), allowNull: false },
-    topicId: { type: DataTypes.STRING(45), allowNull: false },
-    word: { type: DataTypes.STRING(100), allowNull: true },
-    openaiAnalyseId: { type: DataTypes.INTEGER, allowNull: false }
+    keywordId: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true,
+        allowNull: false
+    },
+    keyword: {
+        type: DataTypes.STRING(255),
+        allowNull: false
+    },
+    createdAt: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW
+    },
+    updatedAt: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW
+    }
 }, {
     sequelize,
     modelName: 'keywords',
-    tableName: 'keywords', // Make sure this matches exactly with your table name
-});
-
-keywords.belongsTo(openai_analyse_ids, { foreignKey: 'openaiAnalyseId', targetKey: 'id' });
-openai_analyse_ids.hasMany(keywords, { foreignKey: 'openaiAnalyseId', onDelete: 'CASCADE' });
-
-sequelize.sync({ force: false, alter: false }).then(() => {
-    console.log("-I- All keywords models were synchronized successfully.");
+    tableName: 'keywords',
+    timestamps: true
 });
 
 export default keywords;

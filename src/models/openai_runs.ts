@@ -1,19 +1,21 @@
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../../config/database';
 
-class topics extends Model {
-    public topicId!: string;
+class openai_runs extends Model {
+    public runId!: number;
     public videoId!: number;
-    public title!: string;
-    public summary!: string;
+    public model!: string;
+    public promptTokens!: number;
+    public completionTokens!: number;
     public readonly createdAt!: Date;
     public readonly updatedAt!: Date;
 }
 
-topics.init({
-    topicId: {
-        type: DataTypes.STRING(255),
+openai_runs.init({
+    runId: {
+        type: DataTypes.INTEGER,
         primaryKey: true,
+        autoIncrement: true,
         allowNull: false
     },
     videoId: {
@@ -22,15 +24,20 @@ topics.init({
         references: {
             model: 'videos',
             key: 'videoId'
-        }
+        },
+        onDelete: 'CASCADE'
     },
-    title: {
-        type: DataTypes.STRING(255),
+    model: {
+        type: DataTypes.STRING(50),
         allowNull: false
     },
-    summary: {
-        type: DataTypes.TEXT,
-        allowNull: true
+    promptTokens: {
+        type: DataTypes.MEDIUMINT,
+        allowNull: false
+    },
+    completionTokens: {
+        type: DataTypes.MEDIUMINT,
+        allowNull: false
     },
     createdAt: {
         type: DataTypes.DATE,
@@ -42,9 +49,9 @@ topics.init({
     }
 }, {
     sequelize,
-    modelName: 'topics',
-    tableName: 'topics',
+    modelName: 'openai_runs',
+    tableName: 'openai_runs',
     timestamps: true
 });
 
-export default topics;
+export default openai_runs;

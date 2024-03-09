@@ -29,8 +29,4 @@ openai_prompts.init({
     timestamps: true, // enable automatic generation of createdAt and updatedAt fields
 });
 
-sequelize.sync({ force: false, alter: false }).then(() => {
-    console.log("-I- All openai_prompts models were synchronized successfully.");
-});
-
 export default openai_prompts;

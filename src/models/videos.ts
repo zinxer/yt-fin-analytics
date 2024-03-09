@@ -1,21 +1,28 @@
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../../config/database';
 
-class youtube_channels extends Model {
-  public id!: number;
+class videos extends Model {
+  public videoId!: number;
+  public videoUid!: string;
   public sourceId!: string;
-  public channelName!: string;
+  public title!: string;
   public description!: string;
-  public thumbnailUrl!: string;
+  public transcript!: string;
+  public overallSentiment!: string;
+  public publishedAt!: Date;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }
 
-youtube_channels.init({
-  id: {
+videos.init({
+  videoId: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true,
+    allowNull: false
+  },
+  videoUid: {
+    type: DataTypes.STRING(45),
     allowNull: false
   },
   sourceId: {
@@ -27,7 +34,7 @@ youtube_channels.init({
     },
     onDelete: 'CASCADE'
   },
-  channelName: {
+  title: {
     type: DataTypes.STRING(255),
     allowNull: false
   },
@@ -35,9 +42,17 @@ youtube_channels.init({
     type: DataTypes.TEXT,
     allowNull: true
   },
-  thumbnailUrl: {
-    type: DataTypes.STRING(255),
+  transcript: {
+    type: DataTypes.TEXT,
     allowNull: true
+  },
+  overallSentiment: {
+    type: DataTypes.STRING(50),
+    allowNull: true
+  },
+  publishedAt: {
+    type: DataTypes.DATE,
+    allowNull: false
   },
   createdAt: {
     type: DataTypes.DATE,
@@ -49,9 +64,9 @@ youtube_channels.init({
   }
 }, {
   sequelize,
-  modelName: 'youtube_channels',
-  tableName: 'youtube_channels',
+  modelName: 'videos',
+  tableName: 'videos',
   timestamps: true
 });
 
-export default youtube_channels;
+export default videos;
