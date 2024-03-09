@@ -14,31 +14,27 @@
     "asset_discussed": [
         {
             "asset_name": "<asset>",
-            "market_type": "<market_type>",
+            "asset_market_type": "<market_type>",
             "related_country": "country",
             "participant": [
                 {
                     "name": "<participant1>",
-                    "sentiment": "<bullish_neutral_bearish>",
-                    "emotion": "<asset1_participant1_emotion>"
+                    "sentiment": "<bullish_neutral_bearish>"
                 },
                 {
                     "name": "<participant2>",
-                    "sentiment": "<bullish_neutral_bearish>",
-                    "emotion": "<asset1_participant2_emotion>"
+                    "sentiment": "<bullish_neutral_bearish>"
                 },
                 {
                     "name": "<participant3>",
-                    "sentiment": "<bullish_neutral_bearish>",
-                    "emotion": "<asset1_participant3_emotion>"
+                    "sentiment": "<bullish_neutral_bearish>"
                 },
                 {
                     "name": "<participant4>",
-                    "sentiment": "<bullish_neutral_bearish>",
-                    "emotion": "<asset1_participant4_emotion>"
+                    "sentiment": "<bullish_neutral_bearish>"
                 }
             ],
-            "overall_sentiment": "<asset1_overall_sentiment>",
+            "asset_sentiment": "<bullish_neutral_bearish>",
             "weight": "<asset1_weight_outof100>",
             "prediction": {
                 "short_term": "<bullish_neutral_uncertain_bearish>",
@@ -49,31 +45,27 @@
         },
         {
             "asset_name": "<asset2>",
-            "market_type": "<market2_type>",
+            "asset_market_type": "<market2_type>",
             "related_country": "country",
             "participant": [
                 {
                     "name": "<participant1>",
-                    "sentiment": "<bullish_neutral_bearish>",
-                    "emotion": "<asset1_participant1_emotion>"
+                    "sentiment": "<bullish_neutral_bearish>"
                 },
                 {
                     "name": "<participant2>",
-                    "sentiment": "<bullish_neutral_bearish>",
-                    "emotion": "<asset1_participant2_emotion>"
+                    "sentiment": "<bullish_neutral_bearish>"
                 },
                 {
                     "name": "<participant3>",
-                    "sentiment": "<bullish_neutral_bearish>",
-                    "emotion": "<asset1_participant3_emotion>"
+                    "sentiment": "<bullish_neutral_bearish>"
                 },
                 {
                     "name": "<participant4>",
-                    "sentiment": "<bullish_neutral_bearish>",
-                    "emotion": "<asset1_participant4_emotion>"
+                    "sentiment": "<bullish_neutral_bearish>"
                 }
             ],
-            "overall_sentiment": "<bullish_neutral_bearish>",
+            "asset_sentiment": "<bullish_neutral_bearish>",
             "weight": "<asset2_weight_outof100>",
             "prediction": {
                 "short_term": "<bullish_neutral_uncertain_bearish>",
@@ -84,7 +76,7 @@
         },
         {
             "asset_name": "<asset3>",
-            "market_type": "<market3_type>",
+            "asset_market_type": "<market3_type>",
             "related_country": [
                 "<country1>",
                 "<country2>"
@@ -92,26 +84,22 @@
             "participant": [
                 {
                     "name": "<participant1>",
-                    "sentiment": "<bullish_neutral_bearish>",
-                    "emotion": "<asset1_participant1_emotion>"
+                    "sentiment": "<bullish_neutral_bearish>"
                 },
                 {
                     "name": "<participant2>",
-                    "sentiment": "<bullish_neutral_bearish>",
-                    "emotion": "<asset1_participant2_emotion>"
+                    "sentiment": "<bullish_neutral_bearish>"
                 },
                 {
                     "name": "<participant3>",
-                    "sentiment": "<bullish_neutral_bearish>",
-                    "emotion": "<asset1_participant3_emotion>"
+                    "sentiment": "<bullish_neutral_bearish>"
                 },
                 {
                     "name": "<participant4>",
-                    "sentiment": "<bullish_neutral_bearish>",
-                    "emotion": "<asset1_participant4_emotion>"
+                    "sentiment": "<bullish_neutral_bearish>"
                 }
             ],
-            "overall_sentiment": "<bullish_neutral_bearish>",
+            "asset_sentiment": "<bullish_neutral_bearish>",
             "weight": "<asset3_weight_outof100>",
             "prediction": {
                 "short_term": "<bullish_neutral_uncertain_bearish>",
@@ -124,7 +112,7 @@
     "topic_discussed": [
         {
             "topic": "<topic1>",
-            "market_type": [
+            "topic_market_type": [
                 "<market1>",
                 "<market2>"
             ],
@@ -140,13 +128,14 @@
                 "<keyword1>",
                 "<keyword2>"
             ],
+            "sector": "<sector>",
             "sentiment": "<topic1_sentiment>",
             "summary": "<topic1_summary>",
             "factual_quality_score": "<high_medium_low>"
         },
         {
             "topic": "<topic2>",
-            "market_type": [
+            "topic_market_type": [
                 "<market1>",
                 "<market2>"
             ],
@@ -161,6 +150,7 @@
             "keywords": [
                 "<keyword1>"
             ],
+            "sector": "<sector>",
             "sentiment": "<topic2_sentiment>",
             "summary": "<topic2_summary>",
             "factual_quality_score": "<high_medium_low>"

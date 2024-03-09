@@ -36,7 +36,7 @@ async function queryOpenAI(prompt: string, isJson = true, maxTokenSize = MODEL_T
                     "content": prompt
                 }],
             //max_tokens: maxTokenSize,
-            temperature: 0.7, // Adjust for creativity level,
+            temperature: 0.5, // Adjust for creativity level,
             response_format: {
                 "type": isJson ? "json_object" : "text"
             }
@@ -124,7 +124,7 @@ export async function analyseYoutubeVideoTitle(videoId: string = '', forceUpdate
     return null
 }
 
-export async function analyseYoutubeVideoTranscript(videoId: string = '', forceUpdate: boolean = false) {
+export async function analyseYoutubeVideoTranscript(videoId: string = '', charLimit = 15000, forceUpdate: boolean = false) {
     // process video title if videoId is provided, else process all video titles in youtube_videos table
     if (videoId) {
         //get video title from youtube_videos table
@@ -136,7 +136,7 @@ export async function analyseYoutubeVideoTranscript(videoId: string = '', forceU
         if (video) {
             // TODO: if no videoId, then process all videos with null openaiAnalyseId
             // TODO: filter long descriptions
-            // TODO: filter long transcripts
+            // TODO: filter long transcripts by charLimit
             const openaiPrompt = await openai_prompts.findOne({ where: { key: 'VIDEO_TRANSCRIPT' } });
             if (openaiPrompt) {
                 const { prompt, responseJsonFormat } = openaiPrompt;
@@ -167,7 +167,7 @@ export async function analyseYoutubeVideoTranscript(videoId: string = '', forceU
 async function recordAnalysedYoutubeVideoData(video: any, response: any) {
     const openAiResponse = response.choices[0];
     const responseJson = JSON.parse((openAiResponse as any).message.content);
-    console.log("debug", responseJson)
+    console.log("debug", JSON.stringify(responseJson))
 
     const transaction = await sequelize.transaction();
     try {
@@ -212,9 +212,9 @@ async function recordAnalysedYoutubeVideoData(video: any, response: any) {
                     openaiAnalyseId: openaiAnalyseIdValue
                 }, { transaction });
 
-                if (topic.market_type.length > 0) {
+                if (topic.topic_market_type.length > 0) {
                     // markets table
-                    for (let market of topic.market_type) {
+                    for (let market of topic.topic_market_type) {
                         market = market.toLowerCase();
                         await markets.upsert({
                             id: (md5(video.id + market.toLowerCase())).substring(0, 10),
@@ -284,9 +284,9 @@ async function recordAnalysedYoutubeVideoData(video: any, response: any) {
                     associatedId: video.id,
                     assetName: asset.asset_name.toLowerCase(),
                     country: asset.related_country.toLowerCase(),
-                    marketType: asset.market_type.toLowerCase(),
+                    marketType: asset.asset_market_type.toLowerCase(),
                     weight: asset.weight,
-                    sentiment: asset.overall_sentiment.toLowerCase(),
+                    sentiment: asset.asset_sentiment.toLowerCase(),
                     shortTermSentiment: asset.prediction.short_term.toLowerCase(),
                     longTermSentiment: asset.prediction.long_term.toLowerCase(),
                     strength: asset.strength,
@@ -305,7 +305,6 @@ async function recordAnalysedYoutubeVideoData(video: any, response: any) {
                             assetName: asset.asset_name.toLowerCase(),
                             participantName: participant.name.toLowerCase(),
                             sentiment: participant.sentiment.toLowerCase(),
-                            emotion: participant.emotion.toLowerCase(),
                             openaiAnalyseId: openaiAnalyseIdValue
                         }, { transaction });
                     }

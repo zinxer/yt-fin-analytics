@@ -249,19 +249,10 @@ export async function retrieveAndSaveYoutubeVideoTranscript(videoId?: string, op
             }
         }
     } else {
+        // retrieve all transcripts for videos in the database
         // if optimise is true, only retrieve transcripts for videos where titleInvestmentScore is medium or high (case insensitive) else retrieve transcripts for all videos
         if (optimise) {
-            const videos = await youtube_videos.findAll({
-                where: {
-                    titleInvestmentScore: {
-                        [Op.or]: [
-                            { [Op.iLike]: 'medium' },
-                            { [Op.iLike]: 'high' }
-                        ]
-                    },
-                    transcript: null
-                }
-            });
+            const videos = await youtube_videos.findAll({ where: { titleInvestmentScore: { [Op.or]: [{ [Op.iLike]: 'medium' }, { [Op.iLike]: 'high' }] }, transcript: null } });
             for (const video of videos) {
                 const transcript = await getYoutubeTranscriptFromVideoId(video.id);
                 if (transcript) {

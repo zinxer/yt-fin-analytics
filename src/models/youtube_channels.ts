@@ -19,6 +19,7 @@ class youtube_channels extends Model {
 
 youtube_channels.init({
     id: { type: DataTypes.STRING(45), primaryKey: true, unique: true },
+    isActive: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
     customUrl: { type: DataTypes.STRING(45), allowNull: true, unique: true },
     channelName: { type: DataTypes.STRING(100), allowNull: true },
     playlistId: { type: DataTypes.STRING(45), allowNull: false },

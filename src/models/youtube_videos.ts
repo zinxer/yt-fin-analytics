@@ -45,7 +45,7 @@ youtube_videos.init({
     viewCount: { type: DataTypes.INTEGER, allowNull: true, defaultValue: null },
     likeCount: { type: DataTypes.INTEGER, allowNull: true, defaultValue: null },
     commentCount: { type: DataTypes.INTEGER, allowNull: true, defaultValue: null },
-    transcript: { type: DataTypes.TEXT, allowNull: true },
+    transcript: { type: DataTypes.TEXT('long'), allowNull: true },
     summary: { type: DataTypes.TEXT, allowNull: true },
     transcriptQuality: { type: DataTypes.STRING(45), allowNull: true },
     transcriptLang: { type: DataTypes.STRING(45), allowNull: true },

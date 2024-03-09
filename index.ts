@@ -12,17 +12,17 @@ import { analyseYoutubeVideoTitle, analyseYoutubeVideoTranscript } from './src/s
         //console.log(savedChannel)
 
         // Save channel videos
-        const savedVideos = await retrieveAndSaveChannelVideos('UUxxxxxxxxxxxxxxxxxxxxxx');
-        if (savedVideos) {
-            console.log('-I- Videos saved successfully:', savedVideos.length);
-        } else {
-            console.log('-I- No videos saved', 'UUxxxxxxxxxxxxxxxxxxxxxx');
-        }
+        // const savedVideos = await retrieveAndSaveChannelVideos('UUxxxxxxxxxxxxxxxxxxxxxx');
+        // if (savedVideos) {
+        //     console.log('-I- Videos saved successfully:', savedVideos.length);
+        // } else {
+        //     console.log('-I- No videos saved', 'UUxxxxxxxxxxxxxxxxxxxxxx');
+        // }
 
-        // //analyze all video titles from youtube_videos table
+        // analyze all video titles from youtube_videos table
         // await analyseYoutubeVideoTitle();
-        // await retrieveAndSaveYoutubeVideoTranscript();
-        // await analyseYoutubeVideoTranscript('VIDEO_ID_PLACEHOLDER')
+        //await retrieveAndSaveYoutubeVideoTranscript();
+        await analyseYoutubeVideoTranscript('VIDEO_ID_PLACEHOLDER', 15000, true)
 
 
     } catch (error) {

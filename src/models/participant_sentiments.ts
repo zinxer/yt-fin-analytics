@@ -10,7 +10,6 @@ class participant_sentiments extends Model {
     declare assetName: string;
     declare participantName: string;
     declare sentiment: string;
-    declare emotion: string;
     declare openaiAnalyseId: number;
 }
 
@@ -21,7 +20,6 @@ participant_sentiments.init({
     assetName: { type: DataTypes.STRING(100), allowNull: false },
     participantName: { type: DataTypes.STRING(100), allowNull: false },
     sentiment: { type: DataTypes.STRING(100), allowNull: true },
-    emotion: { type: DataTypes.STRING(100), allowNull: true },
     openaiAnalyseId: { type: DataTypes.INTEGER, allowNull: false }
 }, {
     sequelize,
