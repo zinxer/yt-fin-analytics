@@ -1,15 +1,20 @@
 import 'dotenv/config';
 import axios from 'axios';
 import { YoutubeTranscript } from 'youtube-transcript';
+import OpenAI from 'openai';
 
 // Database models
 import video_sources from '../models/video_sources';
 import youtube_channels from '../models/youtube_channels';
 import videos from '../models/videos';
+import { Op } from 'sequelize';
+import openai_prompts from '../models/openai_prompts';
 
-
+// Define your API key and the model you want to use
+const openai = new OpenAI(process.env.OPENAI_API_KEY as any); // Provide a default value for OPENAI_API_KEY
 const YOUTUBE_API_KEY = process.env.YOUTUBE_DATA_API_KEY;
 const VIDEO_LIMIT = 50
+const MODEL = process.env.OPENAI_MODEL_ID;
 
 // function to populate youtube_channels table from video_source table
 async function populateYoutubeChannels() {
@@ -150,6 +155,59 @@ async function retrieveAndSaveYoutubeVideoTranscript() {
     }
 }
 
+async function analyseYoutubeVideoTranscript() {
+    try {
+        // get all videos with transcript
+        const videosWithTranscript = await videos.findAll({ where: { transcript: { [Op.ne]: null } } });
+        // return if there are no videos with transcript
+        if (videosWithTranscript.length === 0) { return }
+
+        const openaiPrompt = await openai_prompts.findOne({ where: { key: 'OPENAI_VIDEO_TRANSCRIPT' } });
+        const { prompt } = openaiPrompt!;
+        // loop through the videos and analyse the transcript
+        for (let i = 0; i < videosWithTranscript.length; i++) {
+            const video = videosWithTranscript[i];
+            const videoTitle = videosWithTranscript[i].title;
+            const videoDescription = videosWithTranscript[i].description;
+            const transcript = video.transcript;
+
+            // construct openai prompt
+            const openaiPrompt = {
+                model: MODEL,
+                messages: [{
+                    role: 'system',
+                    content: prompt
+                }, {
+                    role: 'user',
+                    content: `video_title:${videoTitle}; video_description:${videoDescription}; video_transcript:${transcript}`
+                }],
+                temperature: 0.7,
+                max_tokens: 4095,
+                top_p: 1,
+                frequency_penalty: 0,
+                presence_penalty: 0,
+                response_format: { "type": "json_object" }
+            }
+
+            // send request to openai
+            const response = await openai.chat.completions.create(openaiPrompt as any);
+            console.log(response.choices[0].message.content);
+            process.exit(0)
+
+            // check if the token size is greater than the maximum allowed by OpenAI
+            // if (transcriptLength > maxTokens) {
+            //     console.log(`-W- Transcript for videoId: ${videoId} is too large for OpenAI, skipping analysis.`);
+            //     continue;
+            // }
+
+
+        }
+    } catch (error) {
+        console.error('-E- An error occurred:', error);
+    }
+
+}
+
 // Add channel videos into database
 (async () => {
     try {
@@ -162,8 +220,11 @@ async function retrieveAndSaveYoutubeVideoTranscript() {
         console.log('-I- Videos saved successfully');
 
         // retrieve all youtube video transcripts
-        await retrieveAndSaveYoutubeVideoTranscript();
+        //await retrieveAndSaveYoutubeVideoTranscript();
         console.log('-I- Transcripts saved successfully');
+
+        // analyse youtube video transcripts
+        await analyseYoutubeVideoTranscript();
 
 
     } catch (error) {

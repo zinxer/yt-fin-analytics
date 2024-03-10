@@ -12,8 +12,7 @@ class openai_prompts extends Model {
 
 openai_prompts.init({
     key: { type: DataTypes.STRING(100), primaryKey: true, allowNull: false },
-    prompt: { type: DataTypes.TEXT('long'), allowNull: false },
-    responseJsonFormat: { type: DataTypes.JSON, allowNull: false },
+    prompt: { type: DataTypes.TEXT, allowNull: false },
     createdAt: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,
