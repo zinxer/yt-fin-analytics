@@ -108,7 +108,7 @@ async function retrieveAndSaveYoutubeVideoTranscript() {
                 }
             });
             // return if there are no videos without transcript
-            if (videosWithoutTranscript.length === 0) { return }
+            if (videosWithoutTranscript.length === 0) { continue }
 
             // loop through the videos and get the transcript
             for (let i = 0; i < videosWithoutTranscript.length; i++) {
