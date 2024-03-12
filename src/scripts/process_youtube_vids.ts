@@ -2,6 +2,7 @@ import 'dotenv/config';
 import axios from 'axios';
 import { YoutubeTranscript } from 'youtube-transcript';
 import OpenAI from 'openai';
+import { isJsonString } from '../utils/utils';
 
 // Database models
 import video_sources from '../models/video_sources';
@@ -9,15 +10,16 @@ import youtube_channels from '../models/youtube_channels';
 import videos from '../models/videos';
 import { Op } from 'sequelize';
 import openai_prompts from '../models/openai_prompts';
+import openai_runs from '../models/openai_runs';
 
 // Define your API key and the model you want to use
 const openai = new OpenAI(process.env.OPENAI_API_KEY as any); // Provide a default value for OPENAI_API_KEY
 const YOUTUBE_API_KEY = process.env.YOUTUBE_DATA_API_KEY;
 const VIDEO_LIMIT = 50
-const MODEL = process.env.OPENAI_MODEL_ID;
+const OPENAI_MODEL = process.env.OPENAI_MODEL_ID;
 
 // function to populate youtube_channels table from video_source table
-async function populateYoutubeChannels() {
+async function populateChannelInfo() {
     try {
         // get all video_source id where sourceId is 'youtube'
         const videoSources = await video_sources.findAll({
@@ -57,7 +59,7 @@ async function populateYoutubeChannels() {
     }
 }
 
-async function retrieveYoutubeVideos() {
+async function getVideosFromChannel() {
     try {
         // get all youtube channels
         const channels = await video_sources.findAll({ where: { sourceName: 'youtube', isActive: true } });
@@ -100,7 +102,7 @@ async function retrieveYoutubeVideos() {
     }
 }
 
-async function retrieveAndSaveYoutubeVideoTranscript() {
+async function getTranscript() {
     try {
         // retrieve transcript by channelId
         const channels = await video_sources.findAll({ where: { sourceName: 'youtube' } });
@@ -155,52 +157,26 @@ async function retrieveAndSaveYoutubeVideoTranscript() {
     }
 }
 
-async function analyseYoutubeVideoTranscript() {
+async function openaiAnalyseTranscript() {
     try {
         // get all videos with transcript
         const videosWithTranscript = await videos.findAll({ where: { transcript: { [Op.ne]: null } } });
+
+        // Filter out videos that already have a responseJson in openai_runs corresponding to the videoId table (it means that the video has already been analysed by OpenAI and we don't need to do it again)
+        const videoIds = videosWithTranscript.map((video) => video.videoId);
+        const openaiRuns = await openai_runs.findAll({ where: { videoId: videoIds, model: OPENAI_MODEL, responseJson: { [Op.ne]: null } } });
+        const openaiRunVideoIds = openaiRuns.map((openaiRun) => openaiRun.videoId);
+        const filteredVideos = videosWithTranscript.filter((video) => !openaiRunVideoIds.includes(video.videoId));
         // return if there are no videos with transcript
-        if (videosWithTranscript.length === 0) { return }
+        if (filteredVideos.length === 0) { return }
 
         const openaiPrompt = await openai_prompts.findOne({ where: { key: 'OPENAI_VIDEO_TRANSCRIPT' } });
         const { prompt } = openaiPrompt!;
         // loop through the videos and analyse the transcript
-        for (let i = 0; i < videosWithTranscript.length; i++) {
-            const video = videosWithTranscript[i];
-            const videoTitle = videosWithTranscript[i].title;
-            const videoDescription = videosWithTranscript[i].description;
-            const transcript = video.transcript;
-
-            // construct openai prompt
-            const openaiPrompt = {
-                model: MODEL,
-                messages: [{
-                    role: 'system',
-                    content: prompt
-                }, {
-                    role: 'user',
-                    content: `video_title:${videoTitle}; video_description:${videoDescription}; video_transcript:${transcript}`
-                }],
-                temperature: 0.7,
-                max_tokens: 4095,
-                top_p: 1,
-                frequency_penalty: 0,
-                presence_penalty: 0,
-                response_format: { "type": "json_object" }
-            }
-
-            // send request to openai
-            const response = await openai.chat.completions.create(openaiPrompt as any);
-            console.log(response.choices[0].message.content);
-            process.exit(0)
-
-            // check if the token size is greater than the maximum allowed by OpenAI
-            // if (transcriptLength > maxTokens) {
-            //     console.log(`-W- Transcript for videoId: ${videoId} is too large for OpenAI, skipping analysis.`);
-            //     continue;
-            // }
-
-
+        for (let i = 0; i < filteredVideos.length; i++) {
+            promptOpenAIandSave(filteredVideos[i], prompt);
+            // delay 5 seconds to avoid openAi rate limit
+            await new Promise(resolve => setTimeout(resolve, 5000));
         }
     } catch (error) {
         console.error('-E- An error occurred:', error);
@@ -208,23 +184,68 @@ async function analyseYoutubeVideoTranscript() {
 
 }
 
+async function promptOpenAIandSave(video: any, prompt: string) {
+    try {
+        const videoTitle = video.title;
+        const videoDescription = video.description;
+        const transcript = video.transcript;
+
+        // construct openai prompt
+        const openaiPrompt = {
+            model: OPENAI_MODEL,
+            messages: [{
+                role: 'system',
+                content: prompt
+            }, {
+                role: 'user',
+                content: `video_title:${videoTitle}; video_description:${videoDescription}; video_transcript:${transcript}`
+            }],
+            temperature: 0.7,
+            max_tokens: 4095,
+            top_p: 1,
+            frequency_penalty: 0,
+            presence_penalty: 0,
+            response_format: { "type": "json_object" }
+        }
+        // TODO: skip if prompt token length is larger than 16385 - 2000 (account for completion_tokens) for MODEL: gpt-3.5-turbo
+        //create an entry in the openai_runs table
+        let openaiRun = await openai_runs.findOne({ where: { videoId: video.videoId, model: OPENAI_MODEL } });
+
+        if (!openaiRun) { openaiRun = await openai_runs.create({ videoId: video.videoId, model: OPENAI_MODEL }) }
+        // send request to openai
+        const response = await openai.chat.completions.create(openaiPrompt as any);
+        if (!response) { return; }
+        const openaiResponseContent = response.choices[0].message.content;
+        if (!openaiResponseContent) { return; }
+        if (!isJsonString(openaiResponseContent)) { console.log(`-W- Response for openai_runs runId: ${openaiRun.runId} is not a JSON object for videoId: ${video.videoId}`); return; }
+
+        openaiRun.responseJson = JSON.parse(openaiResponseContent);
+        openaiRun.promptTokens = response.usage!.prompt_tokens;
+        openaiRun.completionTokens = response.usage!.completion_tokens;
+        openaiRun.totalTokens = response.usage!.total_tokens;
+        await openaiRun.save();
+    } catch (error) {
+        console.error('-E- An error occurred:', error);
+    }
+}
+
 // Add channel videos into database
 (async () => {
     try {
         // ensure all youtube channels are in the youtube_channels table
-        //await populateYoutubeChannels();
+        //await populateChannelInfo();
         console.log('-I- Channels added successfully');
 
         // retrieve and save all youtube videos
-        //await retrieveYoutubeVideos();
+        //await getVideosFromChannel();
         console.log('-I- Videos saved successfully');
 
         // retrieve all youtube video transcripts
-        //await retrieveAndSaveYoutubeVideoTranscript();
+        //await getTranscript();
         console.log('-I- Transcripts saved successfully');
 
         // analyse youtube video transcripts
-        await analyseYoutubeVideoTranscript();
+        await openaiAnalyseTranscript();
 
 
     } catch (error) {

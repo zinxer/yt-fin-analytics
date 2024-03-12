@@ -6,6 +6,7 @@ class topics extends Model {
     public videoId!: number;
     public title!: string;
     public summary!: string;
+    public openaiRunId!: number;
     public readonly createdAt!: Date;
     public readonly updatedAt!: Date;
 }
@@ -31,6 +32,14 @@ topics.init({
     summary: {
         type: DataTypes.TEXT,
         allowNull: true
+    },
+    openaiRunId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'openai_runs',
+            key: 'runId'
+        }
     },
     createdAt: {
         type: DataTypes.DATE,

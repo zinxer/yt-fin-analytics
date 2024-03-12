@@ -4,9 +4,11 @@ import sequelize from '../../config/database';
 class openai_runs extends Model {
     public runId!: number;
     public videoId!: number;
+    public responseJson!: JSON;
     public model!: string;
     public promptTokens!: number;
     public completionTokens!: number;
+    public totalTokens!: number;
     public readonly createdAt!: Date;
     public readonly updatedAt!: Date;
 }
@@ -27,17 +29,25 @@ openai_runs.init({
         },
         onDelete: 'CASCADE'
     },
+    responseJson: {
+        type: DataTypes.JSON,
+        allowNull: true
+    },
     model: {
         type: DataTypes.STRING(50),
         allowNull: false
     },
     promptTokens: {
         type: DataTypes.MEDIUMINT,
-        allowNull: false
+        allowNull: true
     },
     completionTokens: {
         type: DataTypes.MEDIUMINT,
-        allowNull: false
+        allowNull: true
+    },
+    totalTokens: {
+        type: DataTypes.MEDIUMINT,
+        allowNull: true
     },
     createdAt: {
         type: DataTypes.DATE,
