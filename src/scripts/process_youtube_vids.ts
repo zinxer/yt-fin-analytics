@@ -2,7 +2,7 @@ import 'dotenv/config';
 import axios from 'axios';
 import { YoutubeTranscript } from 'youtube-transcript';
 import OpenAI from 'openai';
-import { isJsonString } from '../utils/utils';
+import { isJsonString, openaiNumTokensFromString } from '../utils/utils';
 
 // Database models
 import video_sources from '../models/video_sources';
@@ -207,12 +207,19 @@ async function promptOpenAIandSave(video: any, prompt: string) {
             presence_penalty: 0,
             response_format: { "type": "json_object" }
         }
-        // TODO: skip if prompt token length is larger than 16385 - 2000 (account for completion_tokens) for MODEL: gpt-3.5-turbo
+        //skip if prompt token length is larger than 16385 - 2000 (account for completion_tokens) for MODEL: gpt-3.5-turbo
+        const contextTokenSize = openaiNumTokensFromString(prompt, OPENAI_MODEL!);
+        const tokenLimit = 16385 - 2000;
+        if (Number(contextTokenSize) > tokenLimit) {
+            console.log(`-E- The number of tokens in the prompt for ${video.videoId} exceeds the limit of ${tokenLimit}`);
+            return
+        }
         //create an entry in the openai_runs table
         let openaiRun = await openai_runs.findOne({ where: { videoId: video.videoId, model: OPENAI_MODEL } });
 
         if (!openaiRun) { openaiRun = await openai_runs.create({ videoId: video.videoId, model: OPENAI_MODEL }) }
         // send request to openai
+        console.log(`-I- Sending request to openai for videoId: ${video.videoId}`)
         const response = await openai.chat.completions.create(openaiPrompt as any);
         if (!response) { return; }
         const openaiResponseContent = response.choices[0].message.content;
