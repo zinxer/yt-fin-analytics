@@ -12,11 +12,13 @@ topic_keywords.init({
     topicId: {
         type: DataTypes.STRING(255),
         allowNull: false,
+        primaryKey: true,
         references: { model: 'topics', key: 'topicId' }
     },
     keywordId: {
         type: DataTypes.INTEGER,
         allowNull: false,
+        primaryKey: true,
         references: { model: 'keywords', key: 'keywordId' }
     },
     createdAt: {

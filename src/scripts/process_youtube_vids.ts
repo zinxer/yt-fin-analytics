@@ -5,12 +5,12 @@ import OpenAI from 'openai';
 import { isJsonString, openaiNumTokensFromString } from '../utils/utils';
 
 // Database models
-import video_sources from '../models/video_sources';
-import youtube_channels from '../models/youtube_channels';
-import videos from '../models/videos';
+import { video_sources, youtube_channels, videos, topics, keywords, topic_keywords, participants, contributions, contribution_keywords, mentioned_assets, mentioned_countries, mentioned_sectors, video_keyphrases } from '../models';
 import { Op } from 'sequelize';
 import openai_prompts from '../models/openai_prompts';
 import openai_runs from '../models/openai_runs';
+import sequelize from '../../config/database';
+import md5 from 'md5';
 
 // Define your API key and the model you want to use
 const openai = new OpenAI(process.env.OPENAI_API_KEY as any); // Provide a default value for OPENAI_API_KEY
@@ -181,9 +181,9 @@ async function openaiAnalyseTranscript() {
     } catch (error) {
         console.error('-E- An error occurred:', error);
     }
-
 }
 
+// sub function to openaiAnalyseTranscript to prompt openai and save the response in openai_runs responseJson
 async function promptOpenAIandSave(video: any, prompt: string) {
     try {
         const videoTitle = video.title;
@@ -214,10 +214,13 @@ async function promptOpenAIandSave(video: any, prompt: string) {
             console.log(`-E- The number of tokens in the prompt for ${video.videoId} exceeds the limit of ${tokenLimit}`);
             return
         }
-        //create an entry in the openai_runs table
-        let openaiRun = await openai_runs.findOne({ where: { videoId: video.videoId, model: OPENAI_MODEL } });
 
-        if (!openaiRun) { openaiRun = await openai_runs.create({ videoId: video.videoId, model: OPENAI_MODEL }) }
+        // find or create openai_runs so that we don't create another run for the same videoId and model
+        const [openaiRun, created] = await openai_runs.findOrCreate({
+            where: { videoId: video.videoId, model: OPENAI_MODEL },
+            defaults: { videoId: video.videoId, model: OPENAI_MODEL }
+        });
+
         // send request to openai
         console.log(`-I- Sending request to openai for videoId: ${video.videoId}`)
         const response = await openai.chat.completions.create(openaiPrompt as any);
@@ -231,6 +234,208 @@ async function promptOpenAIandSave(video: any, prompt: string) {
         openaiRun.completionTokens = response.usage!.completion_tokens;
         openaiRun.totalTokens = response.usage!.total_tokens;
         await openaiRun.save();
+    } catch (error) {
+        console.error('-E- An error occurred:', error);
+    }
+}
+
+async function processOpenaiRunsResponse() {
+    try {
+        // get all openai_runs with responseJson
+        const openaiRuns = await openai_runs.findAll({ where: { responseJson: { [Op.ne]: null } } });
+        // return if there are no openai_runs with responseJson
+        if (openaiRuns.length === 0) { return }
+
+        // loop through the openai_runs and process the responseJson
+        for (let i = 0; i < openaiRuns.length; i++) {
+            const openaiRun = openaiRuns[i];
+            const videoId = openaiRun.videoId;
+            const responseJson = openaiRun.responseJson;
+            const openaiRunId = openaiRun.runId;
+
+            await processAnalysedTranscriptData(videoId, responseJson, openaiRunId);
+            process.exit();
+        }
+    } catch (error) {
+        console.error('-E- An error occurred:', error);
+    }
+}
+
+// sub function to processOpenaiRunsResponse to process the responseJson and save the data in the database
+async function processAnalysedTranscriptData(videoId: number, responseJson: any, openaiRunId: number) {
+    const transaction = await sequelize.transaction();
+    try {
+        // Save analysedTitle and overallSentiment from responseJson if videoId exists in the database
+        const video = await videos.findOne({ where: { videoId: videoId } });
+        if (video) {
+            video.analysedTitle = responseJson.title;
+            video.overallSentiment = responseJson.overallSentiment;
+            await video.save({ transaction });
+
+            // Process Keyphrases
+            for (const keyphrase of responseJson.analysis.key_phrases) {
+                if(keyphrase.toLowerCase() === 'unknown') { continue; }
+                const [videoKeyphrase] = await video_keyphrases.findOrCreate({
+                    where: { videoId: videoId, keyphrase: keyphrase },
+                    defaults: { videoId: videoId, keyphrase: keyphrase, openaiRunId: openaiRunId },
+                    transaction
+                });
+            }
+        }
+
+        // Process Topics
+        for (const topicData of responseJson.analysis.topics) {
+            if(topicData.title.toLowerCase() === 'unknown') { continue; }
+            const topicId = md5(`${videoId}-${topicData.topic_id}-${openaiRunId}`).substring(0, 12)
+            // find or create topic
+            const [topic, created] = await topics.findOrCreate({
+                where: { videoId: videoId, title: topicData.title },
+                defaults: {
+                    topicId: topicId,
+                    videoId: videoId,
+                    title: topicData.title,
+                    summary: topicData.summary,
+                    openaiRunId: openaiRunId
+                },
+                transaction
+            });
+
+            // Assuming keywords are associated with topics
+            for (const keywordText of topicData.keywords) {
+                const [keyword] = await keywords.findOrCreate({
+                    where: { keyword: keywordText },
+                    defaults: { keyword: keywordText },
+                    transaction
+                });
+                await topic_keywords.findOrCreate({
+                    where: { topicId: topicId, keywordId: keyword.keywordId },
+                    defaults: { topicId: topicId, keywordId: keyword.keywordId },
+                    transaction
+                });
+            }
+        } // end of topics loop
+
+        // Process Participants and their Contributions
+        for (const participantData of responseJson.analysis.participants) {
+            const participantId = md5(`${videoId}-${participantData.participant_id}-${openaiRunId}`).substring(0, 12)
+
+            // find or create participant
+            const [participant] = await participants.findOrCreate({
+                where: { name: participantData.name, affiliation: participantData.affiliation },
+                defaults: {
+                    participantId: participantId,
+                    name: participantData.name,
+                    affiliation: participantData.affiliation
+                },
+                transaction
+            });
+
+            for (const contributionData of participantData.contributions) {
+                const topicId = md5(`${videoId}-${contributionData.topic_id}-${openaiRunId}`).substring(0, 12)
+                const [contribution] = await contributions.findOrCreate({
+                    where: {
+                        participantId: participantId,
+                        topicId: topicId,
+                        sentiment: contributionData.sentiment
+                    },
+                    defaults: {
+                        participantId: participantId,
+                        topicId: topicId,
+                        sentiment: contributionData.sentiment
+                    },
+                    transaction
+                });
+
+                // Process Contribution Keywords
+                for (const keywordText of contributionData.keywords) {
+                    const [keyword] = await keywords.findOrCreate({
+                        where: { keyword: keywordText },
+                        defaults: { keyword: keywordText },
+                        transaction
+                    });
+                    await contribution_keywords.findOrCreate({
+                        where: {
+                            contributionId: contribution.contributionId,
+                            keywordId: keyword.keywordId
+                        },
+                        defaults: {
+                            contributionId: contribution.contributionId,
+                            keywordId: keyword.keywordId
+                        },
+                        transaction
+                    });
+                }
+
+                // Process Mentioned Assets
+                for (const assetName of contributionData.mentioned_assets) {
+                    if(assetName.toLowerCase() === 'unknown') { continue; }
+                    for (const keyAsset of responseJson.analysis.key_assets) {
+                        if (keyAsset.asset_name === assetName) {
+                            const [mentionedAsset] = await mentioned_assets.findOrCreate({
+                                where: {
+                                    topicId: topicId,
+                                    assetName: assetName
+                                },
+                                defaults: {
+                                    topicId: topicId,
+                                    assetName: assetName,
+                                    mentions: keyAsset.mentions,
+                                    sentiment: keyAsset.sentiment
+                                },
+                                transaction
+                            });
+                        }
+                    }
+                }
+
+                // Process Mentioned Countries
+                for (const countryName of contributionData.mentioned_countries) {
+                    if(countryName.toLowerCase() === 'unknown') { continue; }
+                    for (const keyCountry of responseJson.analysis.key_countries) {
+                        if (keyCountry.country_name === countryName) {
+                            const [mentionedCountry] = await mentioned_countries.findOrCreate({
+                                where: {
+                                    topicId: topicId,
+                                    countryCode: countryName
+                                },
+                                defaults: {
+                                    topicId: topicId,
+                                    countryCode: countryName,
+                                    mentions: keyCountry.mentions,
+                                    sentiment: keyCountry.sentiment
+                                },
+                                transaction
+                            });
+                        }
+                    }
+                }
+
+                // Process Mentioned Sectors
+                for (const sectorName of contributionData.mentioned_sectors) {
+                    if(sectorName.toLowerCase() === 'unknown') { continue; }
+                    for (const keySector of responseJson.analysis.key_sectors) {
+                        if (keySector.sector_name === sectorName) {
+                            const [mentionedSector] = await mentioned_sectors.findOrCreate({
+                                where: {
+                                    topicId: topicId,
+                                    sectorName: sectorName
+                                },
+                                defaults: {
+                                    topicId: topicId,
+                                    sectorName: sectorName,
+                                    mentions: keySector.mentions,
+                                    sentiment: keySector.sentiment
+                                },
+                                transaction
+                            });
+                        }
+                    }
+                }
+
+            } // end of contributions loop
+
+        } // end of participants loop
+        await transaction.commit();
     } catch (error) {
         console.error('-E- An error occurred:', error);
     }
@@ -252,8 +457,11 @@ async function promptOpenAIandSave(video: any, prompt: string) {
         console.log('-I- Transcripts saved successfully');
 
         // analyse youtube video transcripts
-        await openaiAnalyseTranscript();
+        //await openaiAnalyseTranscript();
+        console.log('-I- OpenAI analysis completed successfully');
 
+        await processOpenaiRunsResponse();
+        console.log('-I- OpenAI runs processed successfully');
 
     } catch (error) {
         console.error('-E- An error occurred:', error);

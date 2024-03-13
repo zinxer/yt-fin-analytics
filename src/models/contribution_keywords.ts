@@ -12,6 +12,7 @@ contribution_keywords.init({
     contributionId: {
         type: DataTypes.INTEGER,
         allowNull: false,
+        primaryKey: true,
         references: {
             model: 'contributions',
             key: 'contributionId'
@@ -20,6 +21,7 @@ contribution_keywords.init({
     keywordId: {
         type: DataTypes.INTEGER,
         allowNull: false,
+        primaryKey: true,
         references: {
             model: 'keywords',
             key: 'keywordId'

@@ -8,6 +8,7 @@ class videos extends Model {
   public title!: string;
   public description!: string;
   public transcript!: string;
+  public analysedTitle!: string;
   public overallSentiment!: string;
   public publishedAt!: Date;
   public readonly createdAt!: Date;
@@ -44,6 +45,10 @@ videos.init({
   },
   transcript: {
     type: DataTypes.TEXT,
+    allowNull: true
+  },
+  analysedTitle: {
+    type: DataTypes.STRING(255),
     allowNull: true
   },
   overallSentiment: {
