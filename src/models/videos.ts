@@ -11,6 +11,7 @@ class videos extends Model {
   public analysedTitle!: string;
   public overallSentiment!: string;
   public publishedAt!: Date;
+  public isSuitable!: boolean;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }
@@ -58,6 +59,11 @@ videos.init({
   publishedAt: {
     type: DataTypes.DATE,
     allowNull: false
+  },
+  isSuitable: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true
   },
   createdAt: {
     type: DataTypes.DATE,

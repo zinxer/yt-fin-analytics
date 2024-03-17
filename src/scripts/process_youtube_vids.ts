@@ -88,7 +88,8 @@ async function getVideosFromChannel() {
                         sourceId: video.snippet.channelId,
                         title: video.snippet.title,
                         description: video.snippet.description,
-                        publishedAt: new Date(video.snippet.publishedAt)
+                        publishedAt: new Date(video.snippet.publishedAt),
+                        isSuitable: true
                     };
                     videoDataArray.push(videoData); // Add videoData to the array
                 }
@@ -112,7 +113,8 @@ async function getTranscript() {
             const videosWithoutTranscript = await videos.findAll({
                 where: {
                     transcript: null,
-                    sourceId: channels[i].sourceId
+                    sourceId: channels[i].sourceId,
+                    isSuitable: true
                 }
             });
             // return if there are no videos without transcript
@@ -130,9 +132,9 @@ async function getTranscript() {
                 } catch (error) { // Explicitly type 'error' as 'Error'
                     // check if the error contains 'Transcript is disabled'
                     if ((error as any).message.includes('Transcript is disabled')) {
-                        console.log(`-W- Transcript is disabled for videoUid: ${videoUid}, removing from database.`);
+                        console.log(`-W- Transcript is disabled for videoUid: ${videoUid}, video is not suitable.`);
                         // delete video from database
-                        await video.destroy();
+                        await video.update({ isSuitable: false });
                         continue;
                     }
                     console.error(`-E- An error occurred while fetching transcript for ${videoUid}:`, error);
@@ -142,9 +144,9 @@ async function getTranscript() {
 
                 // continue if transcript character length is larger than MYSQL TEXT type
                 if (transcript.length > 65535) {
-                    console.log(`-W- Transcript for videoUid: ${videoUid} is too large, removing from database.`);
+                    console.log(`-W- Transcript for videoUid: ${videoUid} is too large, video is not suitable.`);
                     // delete video from database
-                    await video.destroy();
+                    await video.update({ isSuitable: false });
                     continue;
                 }
 
@@ -162,7 +164,7 @@ async function getTranscript() {
 async function openaiAnalyseTranscript() {
     try {
         // get all videos with transcript
-        const videosWithTranscript = await videos.findAll({ where: { transcript: { [Op.ne]: null } } });
+        const videosWithTranscript = await videos.findAll({ where: { transcript: { [Op.ne]: null }, isSuitable: true } });
 
         // Filter out videos that already have a responseJson in openai_runs corresponding to the videoId table (it means that the video has already been analysed by OpenAI and we don't need to do it again); We also filter out videos that have been marked as processedError (this way we process the videos that have been marked as processedError possibly from dirty openai_runs responseJson)
         const videoIds = videosWithTranscript.map((video) => video.videoId);
@@ -214,9 +216,9 @@ async function promptOpenAIandSave(video: any, prompt: string) {
         const contextTokenSize = openaiNumTokensFromString(JSON.stringify(messages), OPENAI_MODEL!);
         const tokenLimit = 16385 - OPENAI_MAX_TOKEN;
         if (Number(contextTokenSize) > tokenLimit) {
-            console.log(`-E- The number of tokens in the prompt for ${video.videoUid} exceeds the limit of ${tokenLimit}, removing from database.`);
+            console.log(`-W- The number of tokens in the prompt for ${video.videoUid} exceeds the limit of ${tokenLimit}, video is not suitable.`);
             // remove video from database
-            await video.destroy();
+            await video.update({ isSuitable: false });
             return
         }
 
@@ -226,13 +228,15 @@ async function promptOpenAIandSave(video: any, prompt: string) {
             defaults: { videoId: video.videoId, model: OPENAI_MODEL }
         });
 
+        if (openaiRun.processedError) { console.log(`-I- Retrying analysing videoUid: ${video.videoUid} runId: ${openaiRun.runId} due to previous processedError.`) }
+
         // send request to openai
         console.log(`-I- Sending request to openai for videoUid: ${video.videoUid}`)
         const response = await openai.chat.completions.create(openaiPrompt as any);
         if (!response) { return; }
         const openaiResponseContent = response.choices[0].message.content;
         if (!openaiResponseContent) { return; }
-        if (!isJsonString(openaiResponseContent)) { console.log(`-W- Response for openai_runs runId: ${openaiRun.runId} is not a JSON object for videoUid: ${video.videoUid}`); return; }
+        if (!isJsonString(openaiResponseContent)) { console.log(`-W- Response for openai_runs runId: ${openaiRun.runId} is not a JSON object for videoUid: ${video.videoUid}`); await openaiRun.update({ processedError: true }); return; }
 
         openaiRun.responseJson = JSON.parse(openaiResponseContent);
         openaiRun.promptTokens = response.usage!.prompt_tokens;
@@ -271,7 +275,7 @@ async function processAnalysedTranscriptData(videoId: number, responseJson: any,
     const transaction = await sequelize.transaction();
     try {
         // Save analysedTitle and overallSentiment from responseJson if videoId exists in the database
-        const video = await videos.findOne({ where: { videoId: videoId } });
+        const video = await videos.findOne({ where: { videoId: videoId, isSuitable: true } });
         if (video) {
             video.analysedTitle = responseJson.title;
             video.overallSentiment = responseJson.analysis.overall_sentiment;
@@ -298,10 +302,9 @@ async function processAnalysedTranscriptData(videoId: number, responseJson: any,
             const topicId = md5(`${videoId}-${topicData.topic_id}-${openaiRunId}`).substring(0, 12)
             // find or create topic
             const [topic, created] = await topics.findOrCreate({
-                where: { videoId: videoId, title: topicData.title },
+                where: { topicId: topicId },
                 defaults: {
                     topicId: topicId,
-                    videoId: videoId,
                     title: topicData.title,
                     summary: topicData.summary,
                     openaiRunId: openaiRunId
@@ -344,7 +347,7 @@ async function processAnalysedTranscriptData(videoId: number, responseJson: any,
 
                 // Check if topicId is unknown or none, if so, give it a topicId from the topics table based on videoId
                 if (['unknown', 'none'].includes(contributionData.topic_id.toLowerCase())) {
-                    const topic = await topics.findOne({ where: { videoId: videoId } });
+                    const topic = await topics.findOne({ where: { openaiRunId: openaiRunId } });
                     if (topic) {
                         topicId = topic.topicId;
                     } else {
@@ -473,15 +476,15 @@ async function processAnalysedTranscriptData(videoId: number, responseJson: any,
 (async () => {
     try {
         // ensure all youtube channels are in the youtube_channels table
-        //await populateChannelInfo();
+        await populateChannelInfo();
         console.log('-I- Channels added successfully');
 
         // retrieve and save all youtube videos
-        //await getVideosFromChannel();
+        await getVideosFromChannel();
         console.log('-I- Videos saved successfully');
 
         // retrieve all youtube video transcripts
-        //await getTranscript();
+        await getTranscript();
         console.log('-I- Transcripts saved successfully');
 
         // analyse youtube video transcripts

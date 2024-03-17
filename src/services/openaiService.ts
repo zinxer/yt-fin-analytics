@@ -167,7 +167,6 @@ export async function analyseYoutubeVideoTranscript(videoId: string = '', charLi
 async function recordAnalysedYoutubeVideoData(video: any, response: any) {
     const openAiResponse = response.choices[0];
     const responseJson = JSON.parse((openAiResponse as any).message.content);
-    console.log("debug", JSON.stringify(responseJson))
 
     const transaction = await sequelize.transaction();
     try {
