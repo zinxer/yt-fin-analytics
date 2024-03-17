@@ -5,6 +5,7 @@ class openai_runs extends Model {
     public runId!: number;
     public videoId!: number;
     public responseJson!: JSON;
+    public processed!: boolean;
     public model!: string;
     public promptTokens!: number;
     public completionTokens!: number;
@@ -32,6 +33,11 @@ openai_runs.init({
     responseJson: {
         type: DataTypes.JSON,
         allowNull: true
+    },
+    processed:{
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
     },
     model: {
         type: DataTypes.STRING(50),

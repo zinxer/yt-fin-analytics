@@ -2,7 +2,7 @@ import 'dotenv/config';
 import axios from 'axios';
 import { YoutubeTranscript } from 'youtube-transcript';
 import OpenAI from 'openai';
-import { isJsonString, openaiNumTokensFromString } from '../utils/utils';
+import { countryNameToCode, isJsonString, openaiNumTokensFromString } from '../utils/utils';
 
 // Database models
 import { video_sources, youtube_channels, videos, topics, keywords, topic_keywords, participants, contributions, contribution_keywords, mentioned_assets, mentioned_countries, mentioned_sectors, video_keyphrases } from '../models';
@@ -246,15 +246,19 @@ async function processOpenaiRunsResponse() {
         // return if there are no openai_runs with responseJson
         if (openaiRuns.length === 0) { return }
 
+        // check that the openai_runs responseJson is not already processed
+        const processedOpenaiRuns = openaiRuns.filter((openaiRun) => openaiRun.processed === false);
+        if (processedOpenaiRuns.length === 0) { return }
+        console.log(`-I- Processing ${processedOpenaiRuns.length} openai_runs`);
         // loop through the openai_runs and process the responseJson
-        for (let i = 0; i < openaiRuns.length; i++) {
-            const openaiRun = openaiRuns[i];
+        for (let i = 0; i < processedOpenaiRuns.length; i++) {
+            const openaiRun = processedOpenaiRuns[i];
             const videoId = openaiRun.videoId;
             const responseJson = openaiRun.responseJson;
             const openaiRunId = openaiRun.runId;
 
+            console.log(`-I- Processing openai_run runId: ${openaiRunId} for videoId: ${videoId}`)
             await processAnalysedTranscriptData(videoId, responseJson, openaiRunId);
-            process.exit();
         }
     } catch (error) {
         console.error('-E- An error occurred:', error);
@@ -269,12 +273,14 @@ async function processAnalysedTranscriptData(videoId: number, responseJson: any,
         const video = await videos.findOne({ where: { videoId: videoId } });
         if (video) {
             video.analysedTitle = responseJson.title;
-            video.overallSentiment = responseJson.overallSentiment;
+            video.overallSentiment = responseJson.analysis.overall_sentiment;
             await video.save({ transaction });
 
             // Process Keyphrases
             for (const keyphrase of responseJson.analysis.key_phrases) {
-                if(keyphrase.toLowerCase() === 'unknown') { continue; }
+                if (['unknown', 'none'].includes(keyphrase.toLowerCase())) {
+                    continue;
+                }
                 const [videoKeyphrase] = await video_keyphrases.findOrCreate({
                     where: { videoId: videoId, keyphrase: keyphrase },
                     defaults: { videoId: videoId, keyphrase: keyphrase, openaiRunId: openaiRunId },
@@ -285,7 +291,9 @@ async function processAnalysedTranscriptData(videoId: number, responseJson: any,
 
         // Process Topics
         for (const topicData of responseJson.analysis.topics) {
-            if(topicData.title.toLowerCase() === 'unknown') { continue; }
+            if (['unknown', 'none'].includes(topicData.title.toLowerCase())) {
+                continue;
+            }
             const topicId = md5(`${videoId}-${topicData.topic_id}-${openaiRunId}`).substring(0, 12)
             // find or create topic
             const [topic, created] = await topics.findOrCreate({
@@ -317,11 +325,10 @@ async function processAnalysedTranscriptData(videoId: number, responseJson: any,
 
         // Process Participants and their Contributions
         for (const participantData of responseJson.analysis.participants) {
-            const participantId = md5(`${videoId}-${participantData.participant_id}-${openaiRunId}`).substring(0, 12)
-
+            const participantId = md5(`${participantData.name}-${participantData.affiliation}`).substring(0, 12)
             // find or create participant
             const [participant] = await participants.findOrCreate({
-                where: { name: participantData.name, affiliation: participantData.affiliation },
+                where: { participantId: participantId},
                 defaults: {
                     participantId: participantId,
                     name: participantData.name,
@@ -368,7 +375,9 @@ async function processAnalysedTranscriptData(videoId: number, responseJson: any,
 
                 // Process Mentioned Assets
                 for (const assetName of contributionData.mentioned_assets) {
-                    if(assetName.toLowerCase() === 'unknown') { continue; }
+                    if (['unknown', 'none'].includes(assetName.toLowerCase())) {
+                        continue;
+                    }
                     for (const keyAsset of responseJson.analysis.key_assets) {
                         if (keyAsset.asset_name === assetName) {
                             const [mentionedAsset] = await mentioned_assets.findOrCreate({
@@ -390,17 +399,19 @@ async function processAnalysedTranscriptData(videoId: number, responseJson: any,
 
                 // Process Mentioned Countries
                 for (const countryName of contributionData.mentioned_countries) {
-                    if(countryName.toLowerCase() === 'unknown') { continue; }
+                    if (['unknown', 'none'].includes(countryName.toLowerCase())) {
+                        continue;
+                    }
                     for (const keyCountry of responseJson.analysis.key_countries) {
                         if (keyCountry.country_name === countryName) {
                             const [mentionedCountry] = await mentioned_countries.findOrCreate({
                                 where: {
                                     topicId: topicId,
-                                    countryCode: countryName
+                                    countryCode: countryNameToCode(countryName)?.toLocaleUpperCase()
                                 },
                                 defaults: {
                                     topicId: topicId,
-                                    countryCode: countryName,
+                                    countryCode: countryNameToCode(countryName)?.toLocaleUpperCase(),
                                     mentions: keyCountry.mentions,
                                     sentiment: keyCountry.sentiment
                                 },
@@ -412,7 +423,9 @@ async function processAnalysedTranscriptData(videoId: number, responseJson: any,
 
                 // Process Mentioned Sectors
                 for (const sectorName of contributionData.mentioned_sectors) {
-                    if(sectorName.toLowerCase() === 'unknown') { continue; }
+                    if (['unknown', 'none'].includes(sectorName.toLowerCase())) {
+                        continue;
+                    }
                     for (const keySector of responseJson.analysis.key_sectors) {
                         if (keySector.sector_name === sectorName) {
                             const [mentionedSector] = await mentioned_sectors.findOrCreate({
@@ -435,6 +448,7 @@ async function processAnalysedTranscriptData(videoId: number, responseJson: any,
             } // end of contributions loop
 
         } // end of participants loop
+        await openai_runs.update({ processed: true }, { where: { runId: openaiRunId }, transaction });
         await transaction.commit();
     } catch (error) {
         console.error('-E- An error occurred:', error);

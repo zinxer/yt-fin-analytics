@@ -1,4 +1,5 @@
 import { encoding_for_model } from "@dqbd/tiktoken";
+import countryList from 'country-list';
 
 export function iso8601DurationToSeconds(duration: any) {
   let hours = (duration.match(/(\d+)H/));
@@ -26,9 +27,27 @@ export function openaiNumTokensFromString(message: string, model: string) {
 
 export function isJsonString(str: string) {
   try {
-      JSON.parse(str);
+    JSON.parse(str);
   } catch (e) {
-      return false;
+    return false;
   }
   return true;
+}
+
+// function to covert country name to country code
+export function countryNameToCode(countryName: string) {
+  // custom modification for Vietnam
+  if (countryName.toUpperCase() === 'VIETNAM') { countryName = 'Viet Nam' }
+
+  // first check if the country name is already a country code
+  if (countryList.getName(countryName) === countryName) {
+    return countryName;
+  }
+
+  // If we cannot decide what country code it is, better to just return the countryName entirely
+  if (countryList.getCode(countryName) === undefined) {
+    return countryName.toUpperCase();
+  }
+
+  return countryList.getCode(countryName);
 }

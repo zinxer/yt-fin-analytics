@@ -27,7 +27,7 @@ mentioned_countries.init({
         }
     },
     countryCode: {
-        type: DataTypes.STRING(3),
+        type: DataTypes.STRING(45),
         allowNull: false
     },
     mentions: {
