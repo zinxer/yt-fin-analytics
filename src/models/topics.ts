@@ -3,7 +3,6 @@ import sequelize from '../../config/database';
 
 class topics extends Model {
     public topicId!: string;
-    public videoId!: number;
     public title!: string;
     public summary!: string;
     public openaiRunId!: number;
@@ -16,14 +15,6 @@ topics.init({
         type: DataTypes.STRING(255),
         primaryKey: true,
         allowNull: false
-    },
-    videoId: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        references: {
-            model: 'videos',
-            key: 'videoId'
-        }
     },
     title: {
         type: DataTypes.STRING(255),

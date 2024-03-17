@@ -17,6 +17,7 @@ const openai = new OpenAI(process.env.OPENAI_API_KEY as any); // Provide a defau
 const YOUTUBE_API_KEY = process.env.YOUTUBE_DATA_API_KEY;
 const VIDEO_LIMIT = 50
 const OPENAI_MODEL = process.env.OPENAI_MODEL_ID;
+const OPENAI_MAX_TOKEN = Number(process.env.OPENAI_MODEL_COMPLETION_MAX_TOKEN);
 
 // function to populate youtube_channels table from video_source table
 async function populateChannelInfo() {
@@ -121,6 +122,7 @@ async function getTranscript() {
             for (let i = 0; i < videosWithoutTranscript.length; i++) {
                 const video = videosWithoutTranscript[i];
                 const videoId = video.videoUid;
+                const videoUid = video.videoUid;
 
                 let response;
                 try {
@@ -128,19 +130,19 @@ async function getTranscript() {
                 } catch (error) { // Explicitly type 'error' as 'Error'
                     // check if the error contains 'Transcript is disabled'
                     if ((error as any).message.includes('Transcript is disabled')) {
-                        console.log(`-W- Transcript is disabled for videoId: ${videoId}, removing from database.`);
+                        console.log(`-W- Transcript is disabled for videoUid: ${videoUid}, removing from database.`);
                         // delete video from database
                         await video.destroy();
                         continue;
                     }
-                    console.error(`-E- An error occurred while fetching transcript for ${videoId}:`, error);
+                    console.error(`-E- An error occurred while fetching transcript for ${videoUid}:`, error);
                     continue;
                 }
                 const transcript = response.map((item: any) => item.text).join(' ');
 
                 // continue if transcript character length is larger than MYSQL TEXT type
                 if (transcript.length > 65535) {
-                    console.log(`-W- Transcript for videoId: ${videoId} is too large, removing from database.`);
+                    console.log(`-W- Transcript for videoUid: ${videoUid} is too large, removing from database.`);
                     // delete video from database
                     await video.destroy();
                     continue;
@@ -162,9 +164,9 @@ async function openaiAnalyseTranscript() {
         // get all videos with transcript
         const videosWithTranscript = await videos.findAll({ where: { transcript: { [Op.ne]: null } } });
 
-        // Filter out videos that already have a responseJson in openai_runs corresponding to the videoId table (it means that the video has already been analysed by OpenAI and we don't need to do it again)
+        // Filter out videos that already have a responseJson in openai_runs corresponding to the videoId table (it means that the video has already been analysed by OpenAI and we don't need to do it again); We also filter out videos that have been marked as processedError (this way we process the videos that have been marked as processedError possibly from dirty openai_runs responseJson)
         const videoIds = videosWithTranscript.map((video) => video.videoId);
-        const openaiRuns = await openai_runs.findAll({ where: { videoId: videoIds, model: OPENAI_MODEL, responseJson: { [Op.ne]: null } } });
+        const openaiRuns = await openai_runs.findAll({ where: { videoId: videoIds, model: OPENAI_MODEL, responseJson: { [Op.ne]: null }, processedError: false } });
         const openaiRunVideoIds = openaiRuns.map((openaiRun) => openaiRun.videoId);
         const filteredVideos = videosWithTranscript.filter((video) => !openaiRunVideoIds.includes(video.videoId));
         // return if there are no videos with transcript
@@ -174,7 +176,7 @@ async function openaiAnalyseTranscript() {
         const { prompt } = openaiPrompt!;
         // loop through the videos and analyse the transcript
         for (let i = 0; i < filteredVideos.length; i++) {
-            promptOpenAIandSave(filteredVideos[i], prompt);
+            await promptOpenAIandSave(filteredVideos[i], prompt);
             // delay 5 seconds to avoid openAi rate limit
             await new Promise(resolve => setTimeout(resolve, 5000));
         }
@@ -189,29 +191,32 @@ async function promptOpenAIandSave(video: any, prompt: string) {
         const videoTitle = video.title;
         const videoDescription = video.description;
         const transcript = video.transcript;
+        const messages = [{
+            role: 'system',
+            content: prompt
+        }, {
+            role: 'user',
+            content: `video_title:${videoTitle}; video_description:${videoDescription}; video_transcript:${transcript}`
+        }]
 
         // construct openai prompt
         const openaiPrompt = {
             model: OPENAI_MODEL,
-            messages: [{
-                role: 'system',
-                content: prompt
-            }, {
-                role: 'user',
-                content: `video_title:${videoTitle}; video_description:${videoDescription}; video_transcript:${transcript}`
-            }],
+            messages: messages,
             temperature: 0.7,
-            max_tokens: 4095,
+            max_tokens: OPENAI_MAX_TOKEN,
             top_p: 1,
             frequency_penalty: 0,
             presence_penalty: 0,
             response_format: { "type": "json_object" }
         }
         //skip if prompt token length is larger than 16385 - 2000 (account for completion_tokens) for MODEL: gpt-3.5-turbo
-        const contextTokenSize = openaiNumTokensFromString(prompt, OPENAI_MODEL!);
-        const tokenLimit = 16385 - 2000;
+        const contextTokenSize = openaiNumTokensFromString(JSON.stringify(messages), OPENAI_MODEL!);
+        const tokenLimit = 16385 - OPENAI_MAX_TOKEN;
         if (Number(contextTokenSize) > tokenLimit) {
-            console.log(`-E- The number of tokens in the prompt for ${video.videoId} exceeds the limit of ${tokenLimit}`);
+            console.log(`-E- The number of tokens in the prompt for ${video.videoUid} exceeds the limit of ${tokenLimit}, removing from database.`);
+            // remove video from database
+            await video.destroy();
             return
         }
 
@@ -222,17 +227,18 @@ async function promptOpenAIandSave(video: any, prompt: string) {
         });
 
         // send request to openai
-        console.log(`-I- Sending request to openai for videoId: ${video.videoId}`)
+        console.log(`-I- Sending request to openai for videoUid: ${video.videoUid}`)
         const response = await openai.chat.completions.create(openaiPrompt as any);
         if (!response) { return; }
         const openaiResponseContent = response.choices[0].message.content;
         if (!openaiResponseContent) { return; }
-        if (!isJsonString(openaiResponseContent)) { console.log(`-W- Response for openai_runs runId: ${openaiRun.runId} is not a JSON object for videoId: ${video.videoId}`); return; }
+        if (!isJsonString(openaiResponseContent)) { console.log(`-W- Response for openai_runs runId: ${openaiRun.runId} is not a JSON object for videoUid: ${video.videoUid}`); return; }
 
         openaiRun.responseJson = JSON.parse(openaiResponseContent);
         openaiRun.promptTokens = response.usage!.prompt_tokens;
         openaiRun.completionTokens = response.usage!.completion_tokens;
         openaiRun.totalTokens = response.usage!.total_tokens;
+        openaiRun.processedError = false; // reset processedError to false
         await openaiRun.save();
     } catch (error) {
         console.error('-E- An error occurred:', error);
@@ -242,17 +248,12 @@ async function promptOpenAIandSave(video: any, prompt: string) {
 async function processOpenaiRunsResponse() {
     try {
         // get all openai_runs with responseJson
-        const openaiRuns = await openai_runs.findAll({ where: { responseJson: { [Op.ne]: null } } });
-        // return if there are no openai_runs with responseJson
+        const openaiRuns = await openai_runs.findAll({ where: { responseJson: { [Op.ne]: null }, processed: false, processedError: false } });
         if (openaiRuns.length === 0) { return }
-
-        // check that the openai_runs responseJson is not already processed
-        const processedOpenaiRuns = openaiRuns.filter((openaiRun) => openaiRun.processed === false);
-        if (processedOpenaiRuns.length === 0) { return }
-        console.log(`-I- Processing ${processedOpenaiRuns.length} openai_runs`);
+        console.log(`-I- Processing ${openaiRuns.length} openai_runs`);
         // loop through the openai_runs and process the responseJson
-        for (let i = 0; i < processedOpenaiRuns.length; i++) {
-            const openaiRun = processedOpenaiRuns[i];
+        for (let i = 0; i < openaiRuns.length; i++) {
+            const openaiRun = openaiRuns[i];
             const videoId = openaiRun.videoId;
             const responseJson = openaiRun.responseJson;
             const openaiRunId = openaiRun.runId;
@@ -325,10 +326,11 @@ async function processAnalysedTranscriptData(videoId: number, responseJson: any,
 
         // Process Participants and their Contributions
         for (const participantData of responseJson.analysis.participants) {
+            if (['unknown', 'none'].includes(participantData.name.toLowerCase())) { continue }
             const participantId = md5(`${participantData.name}-${participantData.affiliation}`).substring(0, 12)
             // find or create participant
             const [participant] = await participants.findOrCreate({
-                where: { participantId: participantId},
+                where: { participantId: participantId },
                 defaults: {
                     participantId: participantId,
                     name: participantData.name,
@@ -338,7 +340,17 @@ async function processAnalysedTranscriptData(videoId: number, responseJson: any,
             });
 
             for (const contributionData of participantData.contributions) {
-                const topicId = md5(`${videoId}-${contributionData.topic_id}-${openaiRunId}`).substring(0, 12)
+                let topicId = md5(`${videoId}-${contributionData.topic_id}-${openaiRunId}`).substring(0, 12)
+
+                // Check if topicId is unknown or none, if so, give it a topicId from the topics table based on videoId
+                if (['unknown', 'none'].includes(contributionData.topic_id.toLowerCase())) {
+                    const topic = await topics.findOne({ where: { videoId: videoId } });
+                    if (topic) {
+                        topicId = topic.topicId;
+                    } else {
+                        continue;
+                    }
+                }
                 const [contribution] = await contributions.findOrCreate({
                     where: {
                         participantId: participantId,
@@ -388,7 +400,7 @@ async function processAnalysedTranscriptData(videoId: number, responseJson: any,
                                 defaults: {
                                     topicId: topicId,
                                     assetName: assetName,
-                                    mentions: keyAsset.mentions,
+                                    mentions: keyAsset.mentions ? keyAsset.mentions : 1,
                                     sentiment: keyAsset.sentiment
                                 },
                                 transaction
@@ -412,7 +424,7 @@ async function processAnalysedTranscriptData(videoId: number, responseJson: any,
                                 defaults: {
                                     topicId: topicId,
                                     countryCode: countryNameToCode(countryName)?.toLocaleUpperCase(),
-                                    mentions: keyCountry.mentions,
+                                    mentions: keyCountry.mentions ? keyCountry.mentions : 1,
                                     sentiment: keyCountry.sentiment
                                 },
                                 transaction
@@ -436,7 +448,7 @@ async function processAnalysedTranscriptData(videoId: number, responseJson: any,
                                 defaults: {
                                     topicId: topicId,
                                     sectorName: sectorName,
-                                    mentions: keySector.mentions,
+                                    mentions: keySector.mentions ? keySector.mentions : 1,
                                     sentiment: keySector.sentiment
                                 },
                                 transaction
@@ -451,6 +463,8 @@ async function processAnalysedTranscriptData(videoId: number, responseJson: any,
         await openai_runs.update({ processed: true }, { where: { runId: openaiRunId }, transaction });
         await transaction.commit();
     } catch (error) {
+        await transaction.rollback();
+        await openai_runs.update({ processedError: true }, { where: { runId: openaiRunId } });
         console.error('-E- An error occurred:', error);
     }
 }
@@ -471,7 +485,7 @@ async function processAnalysedTranscriptData(videoId: number, responseJson: any,
         console.log('-I- Transcripts saved successfully');
 
         // analyse youtube video transcripts
-        //await openaiAnalyseTranscript();
+        await openaiAnalyseTranscript();
         console.log('-I- OpenAI analysis completed successfully');
 
         await processOpenaiRunsResponse();
