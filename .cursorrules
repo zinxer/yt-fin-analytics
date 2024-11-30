@@ -1,0 +1,78 @@
+rules:
+  - name: "UK English spelling"
+    description: "Use UK English spelling for all text."
+
+  - name: "Use TypeScript"
+    description: "Write all code in TypeScript for type safety and better developer experience."
+
+  - name: "Use Python"
+    description: "Write all code in Python and pandas for flexibility and better developer experience especially for data analysis."
+
+  - name: "Express.js for API"
+    description: "Use Express.js framework for building the API endpoints."
+
+  - name: "MySQL with Prisma ORM"
+    description: "Use MySQL as the database and Prisma as the ORM for database operations."
+
+  - name: "Prefer functions over const arrow functions"
+    description: "Use function declarations instead of const arrow functions for better readability."
+
+  - name: "Prefer functions over classes"
+    description: "Use functional programming approach with functions instead of classes when possible."
+
+  - name: "Use Maps instead of enums"
+    description: "Prefer JavaScript Map objects over TypeScript enums for better flexibility and type safety."
+
+  - name: "Descriptive naming"
+    description: "Use clear and descriptive names for variables, functions, and files."
+
+  - name: "Camel case for variables and functions"
+    description: "Use camelCase for naming variables and functions."
+
+  - name: "Snake case for database tables"
+    description: "Use snake_case for naming database tables and columns."
+
+  - name: "Ethereum Web3 integration"
+    description: "Utilize Ethereum Web3 libraries for blockchain interactions."
+
+  - name: "Alchemy API as node provider"
+    description: "Use Alchemy API as the Ethereum node provider for Web3 operations."
+
+  - name: "API structure"
+    description: "Organize API routes in separate files under a 'routes' directory."
+
+  - name: "Controller structure"
+    description: "Implement controller functions in separate files under a 'controllers' directory."
+
+  - name: "Service layer"
+    description: "Create a service layer for business logic, separating it from controllers."
+
+  - name: "Error handling"
+    description: "Implement consistent error handling across the application using custom error classes."
+
+  - name: "Environment variables"
+    description: "Use environment variables for configuration and sensitive information."
+
+  - name: "Asynchronous operations"
+    description: "Use async/await for handling asynchronous operations."
+
+  - name: "Input validation"
+    description: "Implement input validation for all API endpoints using a validation library."
+
+  - name: "Logging"
+    description: "Implement comprehensive logging for debugging and monitoring purposes."
+
+  - name: "Code formatting"
+    description: "Use Prettier for consistent code formatting across the project."
+
+  - name: "Linting"
+    description: "Use ESLint with appropriate rules for TypeScript projects."
+
+  - name: "Documentation"
+    description: "Provide clear documentation for API endpoints, functions, and important processes."
+
+  - name: "Security best practices"
+    description: "Follow security best practices for handling private keys, API keys, and user data."
+    
+- Ensure all API keys and sensitive credentials are stored securely and accessed via environment variables.
+- Handle asynchronous API calls using Promises and async/await pattern.
