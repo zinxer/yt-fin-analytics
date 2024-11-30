@@ -1,0 +1,159 @@
+{
+  "name": "video_analysis",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "analyzed_description": {
+        "type": "string",
+        "description": "Brief summary of the transcript"
+      },
+      "overall_keywords": {
+        "type": "array",
+        "description": "Key terms from the transcript",
+        "items": {
+          "type": "string"
+        }
+      },
+      "overall_market_sentiment": {
+        "type": "string",
+        "description": "The overall market sentiment expressed in the transcript",
+        "enum": [
+          "bullish",
+          "neutral",
+          "bearish",
+          "mixed"
+        ]
+      },
+      "key_takeaways": {
+        "type": "array",
+        "description": "Important points derived from the transcript",
+        "items": {
+          "type": "string"
+        }
+      },
+      "topics": {
+        "type": "array",
+        "description": "List of specific topics discussed in the transcript, with detailed summaries and concrete information (weightages must sum to 100)",
+        "items": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Specific title of the topic (e.g., 'Tesla Q4 2023 Earnings Miss' rather than generic 'Tech Earnings')"
+            },
+            "weightage": {
+              "type": "number",
+              "description": "The weightage assigned to the topic (integer 1-100)"
+            },
+            "summary": {
+              "type": "string",
+              "description": "Detailed summary including specific facts, figures, and key points discussed"
+            },
+            "keywords": {
+              "type": "array",
+              "description": "Specific keywords from the actual discussion, not generic terms",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "title",
+            "weightage",
+            "summary",
+            "keywords"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "industries_sectors": {
+        "type": "array",
+        "description": "Industries and sectors referenced in the transcript",
+        "items": {
+          "type": "string"
+        }
+      },
+      "countries_discussed": {
+        "type": "array",
+        "description": "Countries mentioned in the transcript using ISO 3166-1 alpha-2 codes (e.g., US, GB, JP)",
+        "items": {
+          "type": "string"
+        }
+      },
+      "assets_discussed": {
+        "type": "array",
+        "description": "Assets mentioned in the transcript using standard market symbols (e.g., AAPL, BTC-USD, ^GSPC)",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The standard market symbol for the asset"
+            },
+            "short_term_sentiment": {
+              "type": "string",
+              "enum": [
+                "bullish",
+                "neutral",
+                "bearish",
+                "mixed"
+              ]
+            },
+            "long_term_sentiment": {
+              "type": "string",
+              "enum": [
+                "bullish",
+                "neutral",
+                "bearish",
+                "mixed"
+              ]
+            }
+          },
+          "required": [
+            "name",
+            "short_term_sentiment",
+            "long_term_sentiment"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "people_mentioned": {
+        "type": "array",
+        "description": "List of people mentioned in the transcript",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "affiliation": {
+              "type": ["string", "null"]
+            },
+            "role": {
+              "type": ["string", "null"]
+            }
+          },
+          "required": [
+            "name",
+            "affiliation",
+            "role"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "analyzed_description",
+      "overall_keywords",
+      "overall_market_sentiment",
+      "key_takeaways",
+      "topics",
+      "industries_sectors",
+      "countries_discussed",
+      "assets_discussed",
+      "people_mentioned"
+    ],
+    "additionalProperties": false
+  }
+}

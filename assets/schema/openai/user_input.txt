@@ -1,0 +1,138 @@
+IMPORTANT INSTRUCTIONS FOR JSON GENERATION:
+
+1. RESPONSE FORMAT REQUIREMENTS:
+- RETURN ONLY A VALID JSON OBJECT
+- MATCH EXACTLY THE FOLLOWING JSON SCHEMA STRUCTURE
+- DO NOT ADD ANY EXPLANATORY TEXT OR COMMENTARY
+- ENSURE ALL REQUIRED FIELDS ARE POPULATED
+
+2. JSON SCHEMA STRUCTURE:
+{
+    "analyzed_description": "string",
+    "overall_keywords": ["string"], // Empty array if none found
+    "overall_market_sentiment": "bullish|neutral|bearish|mixed", // Default to "mixed" if unclear
+    "key_takeaways": ["string"], // Empty array if none found
+    "topics": [{ // Empty array if none found
+        "title": "string",
+        "weightage": number, // Integer 1-100, MUST sum to 100 across all topics
+        "summary": "string",
+        "keywords": ["string"] // Empty array if none found
+    }],
+    "industries_sectors": ["string"], // Empty array if none found
+    "countries_discussed": ["string"], // Empty array if none found, USE ISO 3166-1 alpha-2 codes (e.g., "US", "GB", "JP")
+    "assets_discussed": [{ // Empty array if none found
+        "name": "string", // Use standard market symbols where applicable (e.g., "AAPL", "BTC-USD", "^GSPC" for S&P 500)
+        "short_term_sentiment": "bullish|neutral|bearish|mixed",
+        "long_term_sentiment": "bullish|neutral|bearish|mixed"
+    }],
+    "people_mentioned": [{ // Empty array if none found
+        "name": "string",
+        "affiliation": "string|null", // null if unknown
+        "role": "string|null" // null if unknown
+    }]
+}
+
+3. GUIDELINES:
+- USE ACTUAL INFORMATION FROM TRANSCRIPT, DO NOT MAKE ASSUMPTIONS
+- CAPTURE ALL NEWS STORIES MENTIONED IN THE TRANSCRIPT, EVEN IF BRIEFLY DISCUSSED
+- INCLUDE ALL SUBSIDIARY STORIES AND DEVELOPMENTS
+- USE EMPTY ARRAYS ([]) FOR MISSING LIST DATA
+- USE NULL FOR MISSING OBJECT PROPERTIES
+- USE "mixed" AS DEFAULT FOR SENTIMENT FIELDS WHEN UNCLEAR
+- ENSURE NUMERICAL WEIGHTAGES ARE INTEGERS 1-100 AND SUM TO EXACTLY 100
+- KEEP DESCRIPTIONS CONCISE BUT INFORMATIVE
+- EXTRACT SPECIFIC AND CONTEXTUAL KEYWORDS
+- PRIORITIZE CURRENT NEWS AND DEVELOPMENTS
+- INCLUDE FORWARD-LOOKING STATEMENTS AND PREDICTIONS
+- NOTE SPECIFIC DATES AND TIMEFRAMES MENTIONED
+- USE ISO 3166-1 ALPHA-2 COUNTRY CODES (e.g., "US" not "United States")
+- USE STANDARD MARKET SYMBOLS FOR ASSETS:
+  * Stocks: "AAPL", "GOOGL", "MSFT", "COIN" (Include all mentioned company stocks)
+  * Indices: "^GSPC" (S&P 500), "^DJI" (Dow), "^IXIC" (NASDAQ)
+  * Crypto: "BTC-USD", "ETH-USD", "SOL-USD"
+  * Crypto Tokens: Include all mentioned tokens (e.g., "TRX-USD" for Example Chain, "UNI-USD" for Uniswap)
+  * Platform/Project Tokens: Include specific project tokens mentioned
+  * Forex: "EUR-USD", "GBP-USD"
+- TOPICS SHOULD TYPICALLY INCLUDE:
+  * Main Market Movement (current price action and trends)
+  * Breaking News (current news stories and developments)
+  * Market Analysis (expert interviews and analysis)
+  * Corporate Updates (company-specific news)
+  * Future Outlook (predictions and forward-looking statements)
+- TOPICS CAN INCLUDE ANY NUMBER OF ITEMS AS LONG AS WEIGHTAGES SUM TO 100
+
+4. JSON GENERATION EXAMPLE:
+{
+    "analyzed_description": "Discussion of Q4 earnings and tech sector outlook",
+    "overall_keywords": ["Q4 earnings beat", "tech layoffs", "AI investments"],
+    "overall_market_sentiment": "mixed",
+    "key_takeaways": [
+        "Tech companies exceeded Q4 expectations",
+        "Continued workforce optimization despite strong earnings",
+        "AI investments remain strong"
+    ],
+    "topics": [
+        {
+            "title": "Tesla Q4 2023 Earnings Miss",
+            "weightage": 40,
+            "summary": "Tesla reported Q4 earnings below analyst expectations with EPS of $0.71 vs $0.74 expected. Revenue grew 3% YoY to $25.17B but missed $25.6B consensus. Company warned of slower growth in 2024.",
+            "keywords": ["Tesla Q4 earnings", "revenue miss", "reduced guidance", "Model Y production slowdown"]
+        },
+        {
+            "title": "Fed January Meeting Maintains Rates",
+            "weightage": 30,
+            "summary": "Federal Reserve kept interest rates unchanged at 5.25-5.50% range. Powell indicated March rate cut unlikely, emphasizing need for more confidence in inflation trajectory.",
+            "keywords": ["Fed meeting", "interest rates", "Powell statement", "March rate decision"]
+        },
+        {
+            "title": "Microsoft's Record-Breaking AI Investment Results",
+            "weightage": 15,
+            "summary": "Microsoft reported exceptional Q4 results driven by AI investments and cloud growth. Azure revenue grew 30% YoY, while AI services contributed significantly to the $62B quarterly revenue. Company announced expanded ChatGPT integration across products.",
+            "keywords": ["Microsoft earnings", "Azure growth", "AI revenue", "ChatGPT integration"]
+        },
+        {
+            "title": "Bitcoin ETF Trading Volume Analysis",
+            "weightage": 15
+            "summary": "Analysis of the first month of spot Bitcoin ETF trading shows over $4B in net inflows, with BlackRock's IBIT leading. Discussion of market impact and institutional adoption patterns, with focus on Grayscale's GBTC outflows stabilizing.",
+            "keywords": ["Bitcoin ETF", "institutional flows", "GBTC conversion", "crypto adoption"]
+        }
+    ],
+    "industries_sectors": ["Technology", "Cloud Computing"],
+    "countries_discussed": ["US", "CN", "JP"],
+    "assets_discussed": [
+        {
+            "name": "^GSPC",
+            "short_term_sentiment": "bullish",
+            "long_term_sentiment": "mixed"
+        },
+        {
+            "name": "AAPL",
+            "short_term_sentiment": "neutral",
+            "long_term_sentiment": "bullish"
+        },
+        {
+            "name": "BTC-USD",
+            "short_term_sentiment": "mixed",
+            "long_term_sentiment": "bullish"
+        }
+    ],
+    "people_mentioned": [
+        {
+            "name": "John Smith",
+            "affiliation": null,
+            "role": "Market Analyst"
+        }
+    ]
+}
+
+5. PROCESSING INSTRUCTIONS:
+- ANALYZE ENTIRE TRANSCRIPT HOLISTICALLY
+- EXTRACT MOST RELEVANT INFORMATION
+- PRIORITIZE CLARITY AND ACCURACY
+- FOCUS ON UNIQUE TERMS AND PHRASES
+- USE DEFAULT VALUES AND EMPTY COLLECTIONS AS SPECIFIED ABOVE
+
+Transcript to Analyze:
+- Video Title: [INSERT_TITLE]
+- Video Description: [INSERT_DESCRIPTION]
+- Transcript: [INSERT_FULL_TRANSCRIPT]
