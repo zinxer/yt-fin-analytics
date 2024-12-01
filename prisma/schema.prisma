@@ -1,0 +1,35 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model configs {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  value       String   @db.Text
+  description String?  @db.Text
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@map("configs")
+}
+
+model llm_prompt_templates {
+  id             Int      @id @default(autoincrement())
+  name           String   @unique
+  system_message String   @db.Text
+  user_input    String   @db.Text
+  json_schema    Json?    @db.Json
+  description    String?  @db.Text
+  is_active      Boolean  @default(true)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  @@map("open_ai_prompts")
+}
