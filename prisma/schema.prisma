@@ -24,12 +24,34 @@ model llm_prompt_templates {
   id             Int      @id @default(autoincrement())
   name           String   @unique
   system_message String   @db.Text
-  user_input    String   @db.Text
+  user_input     String   @db.Text
   json_schema    Json?    @db.Json
   description    String?  @db.Text
   is_active      Boolean  @default(true)
   created_at     DateTime @default(now())
   updated_at     DateTime @updatedAt
 
-  @@map("open_ai_prompts")
+  prompt_submissions llm_prompt_submissions[]
+
+  @@map("llm_prompt_templates")
 }
+
+model llm_prompt_submissions {
+  id                Int      @id @default(autoincrement())
+  template_id       Int
+  llm_model         String
+  response_json     Json?    @db.Json
+  prompt_tokens     Int      @default(0)
+  completion_tokens Int      @default(0)
+  total_tokens      Int      @default(0)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  template llm_prompt_templates @relation(fields: [template_id], references: [id])
+
+  @@map("llm_prompt_submissions")
+}
+
+// TODO: Video table
+
+// TODO: Video_processed table (for documenting processed video by LLM) - link video table and llm_prompt_submissions table
