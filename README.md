@@ -2,7 +2,7 @@
 
 A TypeScript pipeline that ingests YouTube videos from finance and crypto channels, fetches their transcripts, and analyses them with an OpenAI model to produce structured JSON (topics, keywords, mentioned assets, participants, sentiment). Results are stored in MySQL.
 
-> Reference code, not audited. The repository is a snapshot of work in progress: the data layer was being migrated from Sequelize models (`src/models/`) to Prisma (`prisma/schema.prisma`), so the project does not compile as-is (missing `sequelize`/`openai`/`youtube-transcript`/`md5` dependencies and a `config/database` module). Treat it as an architecture and prompt-design reference.
+> Reference code, not audited.
 
 ## Architecture
 
@@ -21,18 +21,23 @@ flowchart LR
 
 ## Stack
 
-- TypeScript on Node.js (ts-node)
-- MySQL with Prisma (`prisma/schema.prisma`) and Sequelize-style models (legacy, `src/models/`)
+- TypeScript on Node.js 20.19+ / 22.12+ / 24+ (tsx for development)
+- MySQL with Prisma 7 (`prisma/schema.prisma`, MariaDB/MySQL driver adapter)
 - OpenAI SDK for LLM analysis with a JSON schema response format
 - YouTube Data API v3 and `youtube-transcript`
-- Express and CORS are listed as dependencies but no HTTP server exists in this snapshot
 
 ## Setup
 
-1. `npm install`
+1. `npm install` (also generates the Prisma client)
 2. `cp .env.example .env` and fill in the values
-3. `npx prisma db push` (or migrate) and `npm run db:seed` to load config and prompt templates from `assets/for_llm/`
-4. Run the driver: `npm run cli -- <channel|videos|titles|transcripts|analyse>`
+3. Create the database tables: `npx prisma migrate dev --name init` (or `npx prisma db push` for a quick start)
+4. `npx prisma generate` (re-run after any schema change)
+5. `npm run db:seed` to load config rows and the prompt template from `assets/for_llm/`
+6. Run the driver: `npm run cli -- <channel|videos|transcripts|analyse|process>`
+
+Typical order: `channel` (save channel by `YT_CHANNEL_HANDLE`), `videos` (save uploads from `YT_UPLOADS_PLAYLIST_ID`), `transcripts`, `analyse` (LLM call per video, optionally only `YT_VIDEO_ID`), `process` (normalise stored responses into topics, keywords, keyphrases and participants).
+
+Production build: `npm run build` then `npm start -- <command>`. Missing environment variables fail fast with a `Configuration error` message.
 
 ## Environment variables
 
@@ -47,13 +52,14 @@ flowchart LR
 | `YOUTUBE_API_BASE_URL` | YouTube API base URL |
 | `YT_CHANNEL_HANDLE` | Channel handle for the `channel` command |
 | `YT_UPLOADS_PLAYLIST_ID` | Uploads playlist ID for the `videos` command |
-| `YT_VIDEO_ID` | Video ID for the `analyse` command |
+| `YT_VIDEO_ID` | Optional video ID to restrict the `analyse` command to one video |
 
 ## Breaking changes from the original private project
 
 - The hardcoded channel handle, playlist IDs and video ID in `index.ts` are replaced by the `YT_*` variables above plus a CLI command argument.
 - The package was renamed to `yt-fin-analytics`; the original database name was replaced by the neutral `analytics_db`. Existing deployments must update their `DATABASE_URL`.
 - The `dev`/`start` scripts referencing a non-existent `src/server.ts` were removed; use `npm run cli`.
+- The data layer is fully on Prisma; the Sequelize models and the legacy title-analysis service (which depended on tables that no longer exist) were removed. The `openai_prompts` table is replaced by `llm_prompt_templates`, and responses follow the schema in `assets/for_llm/json_schema.json`.
 - Old MySQL dumps, the legacy SQL create script and two dead service files were removed from history.
 
 ## Context
