@@ -1,31 +1,29 @@
-import { encoding_for_model } from "@dqbd/tiktoken";
+import { createHash } from 'crypto';
+import { encodingForModel, getEncoding, type TiktokenModel } from 'js-tiktoken';
 import countryList from 'country-list';
 
-export function iso8601DurationToSeconds(duration: any) {
-  let hours = (duration.match(/(\d+)H/));
-  let minutes = duration.match(/(\d+)M/);
-  let seconds = duration.match(/(\d+)S/);
+export function iso8601DurationToSeconds(duration: string): number {
+  const hours = duration.match(/(\d+)H/);
+  const minutes = duration.match(/(\d+)M/);
+  const seconds = duration.match(/(\d+)S/);
 
-  hours = hours ? parseInt(hours[1], 10) * 3600 : 0;
-  minutes = minutes ? parseInt(minutes[1], 10) * 60 : 0;
-  seconds = seconds ? parseInt(seconds[1], 10) : 0;
-
-  return hours + minutes + seconds;
+  return (hours ? parseInt(hours[1], 10) * 3600 : 0)
+    + (minutes ? parseInt(minutes[1], 10) * 60 : 0)
+    + (seconds ? parseInt(seconds[1], 10) : 0);
 }
 
-//Returns the number of tokens in a text string
-export function openaiNumTokensFromString(message: string, model: string) {
-  if (model === undefined) {
-    return null
+// Returns the number of tokens in a text string (falls back to o200k_base for unknown models)
+export function openaiNumTokensFromString(message: string, model: string): number {
+  let encoder;
+  try {
+    encoder = encodingForModel(model as TiktokenModel);
+  } catch {
+    encoder = getEncoding('o200k_base');
   }
-  const encoder = encoding_for_model(model as any);
-
-  const tokens = encoder.encode(message);
-  encoder.free();
-  return tokens.length;
+  return encoder.encode(message).length;
 }
 
-export function isJsonString(str: string) {
+export function isJsonString(str: string): boolean {
   try {
     JSON.parse(str);
   } catch (e) {
@@ -34,9 +32,14 @@ export function isJsonString(str: string) {
   return true;
 }
 
+// Short deterministic id derived from the input (md5 prefix)
+export function shortHash(input: string, length = 12): string {
+  return createHash('md5').update(input).digest('hex').substring(0, length);
+}
+
 // function to covert country name to country code
-export function countryNameToCode(countryName: string) {
-  // custom modification for Vietnam
+export function countryNameToCode(countryName: string): string {
+  // country-list knows Vietnam as 'Viet Nam'
   if (countryName.toUpperCase() === 'VIETNAM') { countryName = 'Viet Nam' }
 
   // first check if the country name is already a country code
@@ -45,9 +48,10 @@ export function countryNameToCode(countryName: string) {
   }
 
   // If we cannot decide what country code it is, better to just return the countryName entirely
-  if (countryList.getCode(countryName) === undefined) {
+  const code = countryList.getCode(countryName);
+  if (code === undefined) {
     return countryName.toUpperCase();
   }
 
-  return countryList.getCode(countryName);
+  return code;
 }

@@ -6,7 +6,6 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = env("DATABASE_URL")
 }
 
 model configs {
@@ -52,6 +51,223 @@ model llm_prompt_submissions {
   @@map("llm_prompt_submissions")
 }
 
-// TODO: Video table
+model video_sources {
+  sourceId   String   @id @db.VarChar(255)
+  sourceName String   @db.VarChar(255)
+  isActive   Boolean
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-// TODO: Video_processed table (for documenting processed video by LLM) - link video table and llm_prompt_submissions table
+  channels youtube_channels[]
+  videos   videos[]
+
+  @@map("video_sources")
+}
+
+model youtube_channels {
+  id           Int      @id @default(autoincrement())
+  sourceId     String   @db.VarChar(255)
+  channelName  String   @db.VarChar(255)
+  description  String?  @db.Text
+  thumbnailUrl String?  @db.VarChar(255)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  source video_sources @relation(fields: [sourceId], references: [sourceId], onDelete: Cascade)
+
+  @@index([sourceId])
+  @@map("youtube_channels")
+}
+
+model videos {
+  videoId          Int      @id @default(autoincrement())
+  videoUid         String   @db.VarChar(45)
+  sourceId         String   @db.VarChar(255)
+  title            String   @db.VarChar(255)
+  description      String?  @db.Text
+  transcript       String?  @db.Text
+  analysedTitle    String?  @db.VarChar(255)
+  overallSentiment String?  @db.VarChar(50)
+  publishedAt      DateTime
+  isSuitable       Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  source     video_sources      @relation(fields: [sourceId], references: [sourceId], onDelete: Cascade)
+  runs       openai_runs[]
+  keyphrases video_keyphrases[]
+
+  @@index([sourceId])
+  @@map("videos")
+}
+
+model openai_runs {
+  runId            Int      @id @default(autoincrement())
+  videoId          Int
+  responseJson     Json?    @db.Json
+  processed        Boolean  @default(false)
+  processedError   Boolean  @default(false)
+  model            String   @db.VarChar(50)
+  promptTokens     Int?     @db.UnsignedMediumInt
+  completionTokens Int?     @db.UnsignedMediumInt
+  totalTokens      Int?     @db.UnsignedMediumInt
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  video      videos             @relation(fields: [videoId], references: [videoId], onDelete: Cascade)
+  topics     topics[]
+  keyphrases video_keyphrases[]
+
+  @@index([videoId])
+  @@map("openai_runs")
+}
+
+model video_keyphrases {
+  id          Int      @id @default(autoincrement())
+  videoId     Int
+  openaiRunId Int
+  keyphrase   String   @db.VarChar(255)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  video videos      @relation(fields: [videoId], references: [videoId])
+  run   openai_runs @relation(fields: [openaiRunId], references: [runId])
+
+  @@unique([videoId, keyphrase])
+  @@index([openaiRunId])
+  @@map("video_keyphrases")
+}
+
+model topics {
+  topicId     String   @id @db.VarChar(255)
+  title       String   @db.VarChar(255)
+  summary     String?  @db.Text
+  openaiRunId Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  run                openai_runs?         @relation(fields: [openaiRunId], references: [runId])
+  topicKeywords      topic_keywords[]
+  contributions      contributions[]
+  mentionedAssets    mentioned_assets[]
+  mentionedCountries mentioned_countries[]
+  mentionedSectors   mentioned_sectors[]
+
+  @@index([openaiRunId])
+  @@map("topics")
+}
+
+model keywords {
+  keywordId Int      @id @default(autoincrement())
+  keyword   String   @db.VarChar(255)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  topicKeywords        topic_keywords[]
+  contributionKeywords contribution_keywords[]
+
+  @@index([keyword])
+  @@map("keywords")
+}
+
+model topic_keywords {
+  topicId   String   @db.VarChar(255)
+  keywordId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  topic   topics   @relation(fields: [topicId], references: [topicId])
+  keyword keywords @relation(fields: [keywordId], references: [keywordId])
+
+  @@id([topicId, keywordId])
+  @@index([keywordId])
+  @@map("topic_keywords")
+}
+
+model participants {
+  participantId String   @id @db.VarChar(255)
+  name          String   @db.VarChar(255)
+  affiliation   String?  @db.VarChar(255)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  contributions contributions[]
+
+  @@map("participants")
+}
+
+model contributions {
+  contributionId Int      @id @default(autoincrement())
+  participantId  String   @db.VarChar(255)
+  topicId        String   @db.VarChar(255)
+  sentiment      String   @db.VarChar(50)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  participant participants            @relation(fields: [participantId], references: [participantId])
+  topic       topics                  @relation(fields: [topicId], references: [topicId])
+  keywords    contribution_keywords[]
+
+  @@index([participantId])
+  @@index([topicId])
+  @@map("contributions")
+}
+
+model contribution_keywords {
+  contributionId Int
+  keywordId      Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  contribution contributions @relation(fields: [contributionId], references: [contributionId])
+  keyword      keywords      @relation(fields: [keywordId], references: [keywordId])
+
+  @@id([contributionId, keywordId])
+  @@index([keywordId])
+  @@map("contribution_keywords")
+}
+
+model mentioned_assets {
+  assetId   Int      @id @default(autoincrement())
+  topicId   String   @db.VarChar(255)
+  assetName String   @db.VarChar(255)
+  mentions  Int
+  sentiment String   @db.VarChar(50)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  topic topics @relation(fields: [topicId], references: [topicId])
+
+  @@index([topicId])
+  @@map("mentioned_assets")
+}
+
+model mentioned_countries {
+  countryId   Int      @id @default(autoincrement())
+  topicId     String   @db.VarChar(255)
+  countryCode String   @db.VarChar(45)
+  mentions    Int
+  sentiment   String   @db.VarChar(50)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  topic topics @relation(fields: [topicId], references: [topicId])
+
+  @@index([topicId])
+  @@map("mentioned_countries")
+}
+
+model mentioned_sectors {
+  sectorId   Int      @id @default(autoincrement())
+  topicId    String   @db.VarChar(255)
+  sectorName String   @db.VarChar(255)
+  mentions   Int
+  sentiment  String   @db.VarChar(50)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  topic topics @relation(fields: [topicId], references: [topicId])
+
+  @@index([topicId])
+  @@map("mentioned_sectors")
+}

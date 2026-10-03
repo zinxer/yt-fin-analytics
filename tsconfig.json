@@ -1,13 +1,12 @@
 {
   "compilerOptions": {
-    "target": "ES6",
+    "target": "ES2022",
     "module": "commonjs",
     "outDir": "./dist",
-    "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules"]
+  "include": ["index.ts", "src/**/*", "prisma/seed.ts", "prisma.config.ts"],
+  "exclude": ["node_modules", "dist"]
 }
