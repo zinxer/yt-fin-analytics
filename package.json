@@ -1,17 +1,16 @@
 {
   "name": "yt-fin-analytics",
   "version": "1.0.0",
-  "description": "This project is a youtube video analytics backend.",
+  "description": "TypeScript pipeline that ingests YouTube finance videos and analyses transcripts with an LLM.",
   "main": "index.js",
   "scripts": {
-    "dev": "ts-node-dev --quiet src/server.ts",
+    "cli": "ts-node index.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
     "db:seed": "prisma db seed"
   },
   "keywords": [],
   "author": "zinxer",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
