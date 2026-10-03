@@ -38,3 +38,17 @@ yarn-error.log*
 
 # Ignore package-lock.json if you want to avoid committing it
 # package-lock.json
+
+# Secret guard
+bin/test.js
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.keystore
+keystore/
+*.dump
+*.bak
+secrets/
